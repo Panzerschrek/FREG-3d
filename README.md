@@ -1,10 +1,10 @@
-
 FREG-3d - 3d version of FREG ( https://github.com/mmaulwurff/FREG )
 
 Language: C++, Qt
 
-system Requirements: 
+System Requirements: 
 Operating System - Microsoft Windows XP\7 ( should work On GNU\Linux, but it is not tested )
+
 Hardware: Graphics card with OpenGL 2.1 ( for light version ) or OpenGL 3.3 ( for full version )
 
 
