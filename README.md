@@ -12,12 +12,12 @@ Copyright (C) 2013 Alexander Kromm (mmaulwurff@gmail.com) and Artjom Kunz.
 Source code is available at GitHub: https://github.com/Panzerschrek/FREG-3d
 
 
-FREG is free software: you can redistribute it and/or modify
+FREG-3d is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-FREG is distributed in the hope that it will be useful,
+FREG-3d is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
