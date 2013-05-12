@@ -1,5 +1,3 @@
-FREG-3d
-=======
 
 FREG-3d - 3d version of FREG ( https://github.com/mmaulwurff/FREG )
 
