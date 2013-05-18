@@ -31,8 +31,26 @@ ushort Player::X() const { return x; }
 ushort Player::Y() const { return y; }
 ushort Player::Z() const { return z; }
 
+Shred * Player::GetShred() const { return world->GetShred(x, y); }
+
 bool Player::GetCreativeMode() const { return creativeMode; }
-void Player::SetCreativeMode(const bool turn) { creativeMode=turn; }
+void Player::SetCreativeMode(const bool turn) {
+	creativeMode=turn;
+	if ( turn ) {
+		disconnect(player, 0, 0, 0);
+		player=block_manager.NewBlock(PILE, DIFFERENT)->ActiveBlock();
+	} else {
+		Pile * const creative_inv=(Pile *)player;
+		const int last_dir=dir;
+		SetPlayer(x, y, z);
+		Dir(last_dir);
+		Inventory * const inv=PlayerInventory();
+		if ( inv ) {
+			inv->GetAll(creative_inv);
+		}
+		block_manager.DeleteBlock(creative_inv);
+	}
+}
 
 int Player::UsingSelfType() const { return usingSelfType; }
 int Player::UsingType() const { return usingType; }
@@ -40,11 +58,13 @@ int Player::UsingType() const { return usingType; }
 Active * Player::GetP() const { return player; }
 
 short Player::HP() const {
-	return player ? player->Durability() : 0;
+	return ( !player || creativeMode ) ?
+		-1 :
+		player ? player->Durability() : 0;
 }
 
 short Player::Breath() const {
-	if ( !player ) {
+	if ( !player || creativeMode ) {
 		return -1;
 	}
 	Animal const * const animal=player->IsAnimal();
@@ -52,7 +72,7 @@ short Player::Breath() const {
 }
 
 short Player::Satiation() const {
-	if ( !player ) {
+	if ( !player || creativeMode ) {
 		return -1;
 	}
 	Animal const * const animal=player->IsAnimal();
@@ -63,8 +83,8 @@ Inventory * Player::PlayerInventory() {
 	return ( player ? player->HasInventory() : 0 );
 }
 
-long Player::GetLongitude() const { return shred->Longitude(); }
-long Player::GetLatitude()  const { return shred->Latitude();  }
+long Player::GetLongitude() const { return GetShred()->Longitude(); }
+long Player::GetLatitude()  const { return GetShred()->Latitude();  }
 
 void Player::UpdateXYZ() {
 	if ( player ) {
@@ -76,15 +96,7 @@ void Player::UpdateXYZ() {
 
 void Player::Focus(ushort & i_target, ushort & j_target, ushort & k_target)
 const {
-	if ( player ) {
-		world->Focus(x, y, z,
-			i_target, j_target, k_target,
-			player->GetDir());
-	} else {
-		i_target=x;
-		j_target=y;
-		k_target=z;
-	}
+	world->Focus(x, y, z, i_target, j_target, k_target, Dir());
 }
 
 void Player::Examine(const short i, const short j, const short k)
@@ -95,8 +107,8 @@ const {
 	QString str;
 	emit Notify( world->FullName(str, i, j, k) );
 	if ( creativeMode ) { //know more
-		emit Notify(QString(tr("Light: %1, fire: %2, sun: %3. \
-				Transp: %4. Normal: %5. Direction: %6.")).
+		emit Notify(QString(tr(
+		"Light:%1, fire:%2, sun:%3. Transp:%4. Norm:%5. Dir:%6.")).
 			arg(world->Enlightened(i, j, k)).
 			arg(world->FireLight(i, j, k)/16).
 			arg(world->SunLight(i, j, k)).
@@ -122,29 +134,77 @@ const {
 }
 
 void Player::Jump() {
-	world->WriteLock();
-	usingType=NO;
-	world->SetDeferredAction(x, y, z, dir, DEFERRED_JUMP);
-	world->Unlock();
+	if ( !creativeMode ) {
+		usingType=NO;
+		world->SetDeferredAction(x, y, z, dir, DEFERRED_JUMP);
+	} else {
+		if ( UP==dir && z<HEIGHT-2 ) {
+			++z;
+		} else if ( z>1 ) {
+			--z;
+		}
+	}
 }
 
-int Player::Move(const int dir) {
-	//world->WriteLock();//Panzerschrek
-	usingType=NO;
-	world->SetDeferredAction(x, y, z, dir, DEFERRED_MOVE);
-	//world->Unlock();
-	return 0;
+void Player::Move(const int dir) {
+	if ( !creativeMode && player ) {
+		usingType=NO;
+		world->SetDeferredAction(x, y, z, dir, DEFERRED_MOVE);
+	} else {
+		switch ( dir ) {
+			case NORTH:
+				if (y>=(world->NumShreds()/2-1)*SHRED_WIDTH+1 )
+				{
+					--y;
+				}
+			break;
+			case SOUTH:
+				if (y<(world->NumShreds()/2+2)*SHRED_WIDTH-1)
+				{
+					++y;
+				}
+			break;
+			case EAST:
+				if (x<(world->NumShreds()/2+2)*SHRED_WIDTH-1)
+				{
+					++x;
+				}
+			break;
+			case WEST:
+				if (x>=(world->NumShreds()/2-1)*SHRED_WIDTH+1)
+				{
+					--x;
+				}
+			break;
+			case UP:
+				if ( z<HEIGHT-2 ) {
+					++z;
+				}
+			break;
+			case DOWN:
+				if ( z>1 ) {
+					--z;
+				}
+			break;
+			default:
+				fprintf(stderr,
+					"Player::Move: unlisted dir: %d",
+					dir);
+		}
+		emit Updated();
+	}
+	if ( world->GetBlock( x, y, z)->Sub() == AIR );
 }
 
 void Player::Turn(const int dir) {
-	//world->WriteLock();//Panzerschrek
+	world->WriteLock();
 	usingType=NO;
 	Dir(( (DOWN==Dir() && UP!=dir) ||
 			(UP==Dir() && DOWN!=dir) ) ?
 		NORTH :
 		dir);
 	emit Updated();
-	//world->Unlock();
+	world->Unlock();
 }
 
 void Player::Backpack() {
@@ -205,16 +265,17 @@ void Player::Use(const ushort num) {
 void Player::Throw(const ushort num) {
 	world->WriteLock();
 	Block * const block=ValidBlock(num);
+	world->Unlock();
 	if ( block ) {
 		world->SetDeferredAction(
 			0, 0, 0,
 			UP, //doesn't matter here
 			DEFERRED_THROW,
 			x, y, z,
-			0,
+			0, //what, doesn't matter here
+			0, //who
 			num);
 	}
-	world->Unlock();
 }
 
 void Player::Obtain(const ushort num) {
@@ -225,6 +286,7 @@ void Player::Obtain(const ushort num) {
 	Focus(x_from, y_from, z_from);
 	Inventory * const inv=world->
 		GetBlock(x_from, y_from, z_from)->HasInventory();
+	world->Unlock();
 	if ( !inv || inv->IsEmpty() ) {
 		update_flag=true;
 		usingType=NO;
@@ -239,26 +301,40 @@ void Player::Obtain(const ushort num) {
 	if ( update_flag ) {
 		emit Updated();
 	}
-	world->Unlock();
 }
 
-void Player::Wield(const ushort num) {
+bool Player::Wield(const ushort num) {
 	world->WriteLock();
 	if ( ValidBlock(num) ) {
-		if ( DWARF==player->Kind() ) {
-			const int wield_code=((Dwarf *)player)->Wield(num);
-			if ( 1==wield_code ) {
-				emit Notify("Nothing here.");
-			} else if ( 2==wield_code ) {
-				emit Notify("Cannot wield this.");
-			} else {
-				emit Updated();
+		for (ushort i=0; i<=Dwarf::onLegs; ++i ) {
+			if ( InnerMove(num, i) ) {
+				world->Unlock();
+				emit Notify(tr("Wielded."));
+				return true;
 			}
-		} else {
-			emit Notify("You can wield nothing.");
 		}
 	}
+	emit Notify(tr("You cannot wield this."));
 	world->Unlock();
+	return false;
+}
+
+bool Player::MoveInsideInventory(const ushort num_from, const ushort num_to) {
+	world->WriteLock();
+	if ( ValidBlock(num_from) && InnerMove(num_from, num_to) ) {
+		world->Unlock();
+		return true;
+	}
+	world->Unlock();
+	return false;
+}
+
+bool Player::InnerMove(const ushort num_from, const ushort num_to) {
+	Inventory * const inv=PlayerInventory();
+	if ( !inv ) {
+		return false;
+	}
+	return ( inv->MoveInside(num_from, num_to) );
 }
 
 void Player::Inscribe(const ushort num) {
@@ -309,6 +385,7 @@ void Player::Build(
 {
 	world->WriteLock();
 	Block * const block=ValidBlock(num);
+	world->Unlock();
 	if ( block && (AIR!=world->Sub(x, y, z-1) || 0==player->Weight()) ) {
 		world->SetDeferredAction(
 			x_target, y_target, z_target,
@@ -316,9 +393,9 @@ void Player::Build(
 			DEFERRED_BUILD,
 			x, y, z,
 			block,
+			player,
 			num);
 	}
-	world->Unlock();
 }
 
 void Player::Craft(const ushort num) {
@@ -366,7 +443,7 @@ void Player::ProcessCommand(QString & command) {
 	if ( "give"==request ) {
 		world->WriteLock();
 		Inventory * const inv=player->HasInventory();
-		if ( !creativeMode ) {
+		if ( !creativeMode && false ) {
 			emit Notify(tr("You are not in Creative Mode."));
 		} else if ( !inv ) {
 			emit Notify(tr("No room."));
@@ -379,7 +456,7 @@ void Player::ProcessCommand(QString & command) {
 			while ( num && inv->HasRoom() ) {
 				for (ushort i=9; i && num; --i) {
 					inv->Get(block_manager.
-						NewBlock(sub, kind));
+						NewBlock(kind, sub));
 					--num;
 				}
 			}
@@ -470,17 +547,16 @@ void Player::Damage(
 		const short y_target,
 		const short z_target)
 const {
-	world->WriteLock();
 	world->SetDeferredAction(
 			x_target, y_target, z_target,
 			0, //direction doesn't matter here
 			DEFERRED_DAMAGE,
 			x, y, z,
 			0, //what block - doesn't matter
+			0, //who
 			( creativeMode ?
 				MAX_DURABILITY : player->DamageLevel() ),
-			( creativeMode ? CREATIVE : player->DamageKind() ));
-	world->Unlock();
+			( creativeMode ? TIME : player->DamageKind() ));
 }
 
 int Player::DamageKind() const {
@@ -502,7 +578,6 @@ void Player::CheckOverstep(const int dir) {
 		emit OverstepBorder(dir);
 		UpdateXYZ();
 	}
-	shred=world->GetShred(x, y);
 }
 
 void Player::BlockDestroy() {
@@ -545,7 +620,6 @@ void Player::SetPlayer(
 	x=player_x;
 	y=player_y;
 	z=player_z;
-	shred=world->GetShred(x, y);
 	if ( DWARF!=world->Kind(x, y, z) ) {
 		block_manager.DeleteBlock(world->GetBlock(x, y, z));
 		world->SetBlock( (player=block_manager.
@@ -613,13 +687,13 @@ Player::Player(World * const w) :
 	homeLongi=sett.value("home_longitude",
 		qlonglong(world->GetSpawnLongi())).toLongLong();
 	homeLati =sett.value("home_latitude",
-			qlonglong(world->GetSpawnLati())).toLongLong();
-	homeX    =sett.value("home_x", 0).toInt();
-	homeY    =sett.value("home_y", 0).toInt();
-	homeZ    =sett.value("home_z", HEIGHT/2).toInt();
-	x        =sett.value("current_x", 0).toInt();
-	y        =sett.value("current_y", 0).toInt();
-	z        =sett.value("current_z", HEIGHT/2).toInt();
+		qlonglong(world->GetSpawnLati())).toLongLong();
+	homeX=sett.value("home_x", 0).toInt();
+	homeY=sett.value("home_y", 0).toInt();
+	homeZ=sett.value("home_z", HEIGHT/2).toInt();
+	x    =sett.value("current_x", 0).toInt();
+	y    =sett.value("current_y", 0).toInt();
+	z    =sett.value("current_z", HEIGHT/2).toInt();
 	creativeMode=sett.value("creative_mode", false).toBool();
 
 	const ushort plus=world->NumShreds()/2*SHRED_WIDTH;
@@ -627,7 +701,13 @@ Player::Player(World * const w) :
 	homeY+=plus;
 	x+=plus;
 	y+=plus;
-	SetPlayer(x, y, z);
+	if ( creativeMode ) {
+		player=block_manager.NewBlock(PILE, DIFFERENT)->ActiveBlock();
+		dir=NORTH;
+	} else {
+		SetPlayer(x, y, z);
+		dir=player->GetDir();
+	}
 
 	connect(world, SIGNAL(NeedPlayer(
 			const ushort,
@@ -656,6 +736,10 @@ void Player::CleanAll() {
 		return;
 	}
 	cleaned=true;
+
+	if ( creativeMode ) {
+		block_manager.DeleteBlock(player);
+	}
 
 	QSettings sett(QDir::currentPath()+'/'+
 			world->WorldName()+"/settings.ini",

@@ -193,14 +193,14 @@ const {
 //if block side lighting is required, just remove first return.
 uchar World::Enlightened(
 		const ushort i, const ushort j, const ushort k,
-		const int dir)
+		const int /*dir*/)
 const {
 	return Enlightened(i, j, k);
-	//next provides lighting of block side, not all block
+	/* //provides lighting of block side, not all block
 	ushort x, y, z;
 	Focus(i, j, k, x, y, z, dir);
-	return qMin(Enlightened(i, j, k),
-		Enlightened(x, y, z));
+	return qMin(Enlightened(i, j, k), Enlightened(x, y, z));
+	*/
 }
 
 uchar World::SunLight(const ushort i, const ushort j, const ushort k)

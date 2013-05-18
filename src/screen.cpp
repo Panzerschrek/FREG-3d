@@ -27,6 +27,7 @@
 #include "Player.h"
 #include <QApplication>
 #include <QDesktopWidget>
+#include "renderer/rendering_constants.h"
 enum Qt::Key;
 
 
@@ -253,6 +254,11 @@ Screen::Screen(
     screenshot_data= new unsigned char[ screen_height * screen_width * 3 ];
     screenshot_thread_mutex.lock();
     screenshot_thread.start();
+
+    inventory_drag= false;
+    movable_inv_slot_number= 0;
+    active_hand= 0;
+
 }
 
 Screen::~Screen()
@@ -351,6 +357,17 @@ void Screen::GetBuildCoord()
     build_pos.x= float(build_x + (w->Latitude() - w->NumShreds()/2 ) * 16  );
     build_pos.y= float( build_y + (w->Longitude() - w->NumShreds()/2 ) * 16  );
     build_pos.z= float( build_z );
+
+    /*Block* b;
+    b= player->GetP()->HasInventory()->ShowBlock( 1 + active_hand );
+    if( b != NULL )
+    {
+    	if( ! b->CanBeOut() )
+    		build_pos.z= -10.0f;
+    }
+    else
+    	build_pos.z= -10.0f;*/
+
 }
 
 
@@ -372,23 +389,98 @@ void Screen::focusInEvent(QFocusEvent * e)
 
 void Screen::mousePressEvent(QMouseEvent * e)
 {
+    if( player->UsingSelfType() == OPEN )
+    {
+        QPoint cur_local_pos= gl_widget->mapFromGlobal( cursor.pos() );
+        int current_slot= ( cur_local_pos.y() + 3 * DEFAULT_FONT_HEIGHT - screen_height/2 + screen_height/4 )/
+        DEFAULT_FONT_HEIGHT - 1;
+
+        Inventory* inv;
+        if( cur_local_pos.x() > DEFAULT_FONT_WIDTH &&
+                cur_local_pos.x() <= ( ( 1 + PLAYER_INVENTORY_WIDTH ) *  DEFAULT_FONT_WIDTH ) )
+            inv= player->GetP()->HasInventory();
+        else if( cur_local_pos.x() > ( ( 2 + PLAYER_INVENTORY_WIDTH ) * DEFAULT_FONT_WIDTH ) &&
+                 cur_local_pos.x()  < ( ( 2 + PLAYER_INVENTORY_WIDTH + INVENTORY_WIDTH ) * DEFAULT_FONT_WIDTH) )
+        {
+            Block* b;
+            b= player->UsingBlock();
+            if( b!= NULL )
+                inv= b->HasInventory();
+            else
+                inv = NULL;
+        }
+        else
+            inv = NULL;
+
+        bool in_inventory= inv != NULL && current_slot >= 0;
+        if( inv != NULL )
+            in_inventory= in_inventory && current_slot <= inv->Size();
+
+
+        if( e->button() == Qt::LeftButton )
+        {
+            //левый край инвентаря - 4 пикселя 41 символ - ширина
+
+            if( inventory_drag && in_inventory )
+            {
+                if( inv == player->GetP()->HasInventory() )
+                {
+                    if( movable_in_player_inventory )
+                        player->MoveInsideInventory( movable_inv_slot_number, current_slot );
+                    else
+                        player->Obtain( movable_inv_slot_number );
+
+                }
+                else if ( inv == player->UsingBlock()->HasInventory() )
+                {
+                    if( movable_in_player_inventory )
+                        player->Throw( movable_inv_slot_number );
+
+                }
+                renderer->SetActiveInventorySlot( 1024, false );
+                inventory_drag= false;
+            }
+            else
+            {
+                if( in_inventory )
+                {
+                    movable_inv_slot_number= current_slot;
+                    inventory_drag= true;
+                    if( inv == player->GetP()->HasInventory() )
+                        movable_in_player_inventory= true;
+                    else
+                        movable_in_player_inventory= false;
+                    renderer->SetActiveInventorySlot( current_slot, movable_in_player_inventory );
+                }
+            }
+
+
+        }
+        return;
+    }
     if( e->button() == Qt::RightButton )
     {
-        QString s("give 6 0 1");
-        player->ProcessCommand( s );
-        int i=0;
-        while(  player->GetP()->HasInventory()->Number(i) == 0 && i < 10 )i++;
-        player->Build( build_x, build_y, build_z, i );
+        // QString s("give 0 6 1");
+        //player->ProcessCommand( s );
+        //int i=0;
+        // while(  player->GetP()->HasInventory()->Number(i) == 0 && i < 10 )i++;
+        player->Build( build_x, build_y, build_z, 1 + active_hand );
     }
     else if( e->button() == Qt::LeftButton )
-        // player->Damage( build_x, build_y, build_z );
-        w->Damage( build_x, build_y, build_z, 10000, DIG );
+    {
+    	if( !( build_x == player->X() && build_y == player->Y() && build_z == player->Z() ) )
+         player->Damage( build_x, build_y, build_z );
+    }
+        //w->Damage( build_x, build_y, build_z, 10000, DIG );
+    else if( e->button() == Qt::MiddleButton )
+        active_hand= ( active_hand + 1 ) & 1;
 }
 void Screen::mouseMoveEvent(QMouseEvent * e )
 {
 }
 void Screen::keyPressEvent( QKeyEvent* e )
 {
+	QString s("give 6 12");
     int key= e->key();
     key= ( key & 0xff ) | ( key >> 16 );
     if( key < 512 )
@@ -421,11 +513,19 @@ void Screen::keyPressEvent( QKeyEvent* e )
 
     case Qt::Key_I:
         player->Backpack();
+        if( player->UsingSelfType() == OPEN )
+        	use_mouse= false;
+		else
+			use_mouse= true;
         break;
 
     case Qt::Key_BracketRight:
         need_save_screenshot= true;
         break;
+
+	case Qt::Key_E:
+        player->ProcessCommand( s );
+		break;
 
     default:
         break;

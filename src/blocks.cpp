@@ -17,6 +17,7 @@
 
 #include <QDataStream>
 #include <QTextStream>
+#include <QString>
 #include "blocks.h"
 #include "world.h"
 #include "Shred.h"
@@ -65,14 +66,12 @@
 		}
 	}
 
-	int Block::Damage(
-			const ushort dmg,
-			const int dmg_kind=CRUSH)
-	{
-		switch ( sub ) {
+	int Block::Damage(const ushort dmg, const int dmg_kind) {
+		switch ( Sub() ) {
 			case DIFFERENT:
-				if ( TIME==dmg_kind )
-					return 0;
+				if ( TIME==dmg_kind ) {
+					return durability=0;
+				}
 				//no break, only time damages DIFFERENT
 			case NULLSTONE:
 			case STAR:
@@ -80,15 +79,15 @@
 			case SKY:
 			case SUN_MOON:
 			case WATER:
-				return durability;
+				return ( HEAT==dmg_kind || TIME==dmg_kind ) ?
+					durability-=dmg : durability;
 			case MOSS_STONE:
 			case STONE:
 				return ( MINE==dmg_kind ) ?
 					durability-=2*dmg :
 					durability-=dmg;
 			case GREENERY:
-			case GLASS:
-				return durability=0;
+			case GLASS: return durability=0;
 			case ROSE:
 			case HAZELNUT:
 			case WOOD:
@@ -105,8 +104,7 @@
 				return (THRUST==dmg_kind) ?
 					durability-=2*dmg :
 					durability-=dmg;
-			default:
-				return durability-=dmg;
+			default: return durability-=dmg;
 		}
 	}
 
@@ -123,13 +121,13 @@
 		return ( AIR==Sub() ) ? ENVIRONMENT : NOT_MOVABLE;
 	}
 
-	int Block::BeforePush(const int, Block * const) { return NO_ACTION; }
+	int  Block::BeforePush(const int, Block * const) { return NO_ACTION; }
 
 	int  Block::Move(const int) { return 0; }
 
 	bool Block::Armour() const { return false; }
 
-	bool Block::IsWeapon() const { return false; }
+	int  Block::Wearable() const { return WEARABLE_NOWHERE; }
 
 	int  Block::DamageKind() const { return CRUSH; }
 
@@ -144,8 +142,6 @@
 	int  Block::Transparent() const { return transparent; }
 
 	short Block::Durability() const { return durability; }
-
-	float Block::Weight() const { return nullWeight ? 0 : TrueWeight(); }
 
 	uchar Block::LightRadius() const { return 0; }
 
@@ -184,48 +180,46 @@
 	bool Block::operator==(const Block & block) const {
 		return ( block.Kind()==Kind() &&
 				block.Sub()==Sub() &&
+				block.GetDir()==GetDir() &&
 				block.Durability()==Durability() &&
 				*block.note==*note );
 	}
 
-	float Block::TrueWeight() const {
+	ushort Block::Weight() const {
 		switch ( Sub() ) {
-			case NULLSTONE: return 4444;
-			case SOIL:      return 1500;
-			case GLASS:     return 2500;
-			case WOOD:      return 999;
-			case IRON:      return 7874;
-			case GREENERY:  return 2;
-			case SAND:      return 1250;
+			case NULLSTONE: return WEIGHT_NULLSTONE;
+			case SAND:      return WEIGHT_SAND;
+			case SOIL:      return WEIGHT_SAND+WEIGHT_WATER;
+			case GLASS:     return WEIGHT_GLASS;
+			case WOOD:      return WEIGHT_WATER-1;
+			case IRON:      return WEIGHT_IRON;
+			case GREENERY:  return WEIGHT_GREENERY;
 			case ROSE:
-			case HAZELNUT:  return 0.1f;
+			case HAZELNUT:  return WEIGHT_MINIMAL;
 			case MOSS_STONE:
-			case STONE:     return 2600;
-			case A_MEAT:    return 1;
-			case H_MEAT:    return 1;
-			case AIR:       return 0;
-			default: return 1000;
+			case STONE:     return WEIGHT_STONE;
+			case A_MEAT:
+			case H_MEAT:    return WEIGHT_WATER-10;
+			case SKY:
+			case STAR:
+			case SUN_MOON:
+			case AIR:       return WEIGHT_AIR;
+			default:        return WEIGHT_WATER;
 		}
 	}
 
 	void Block::SaveToFile(QDataStream & out) const {
 		const bool normal=(this==block_manager.NormalBlock(Sub()));
 		out << (quint16)Kind() << sub << normal;
-
 		if ( normal ) {
 			return;
 		}
-
-		out << nullWeight
-			<< direction
-			<< durability
-			<< *note;
+		out << direction << durability << *note;
 		SaveAttributes(out);
 	}
 
 	Block::Block(const int sb, const quint8 transp) :
 			sub(sb),
-			nullWeight(false),
 			direction(UP),
 			note(new QString("")),
 			durability(MAX_DURABILITY)
@@ -233,18 +227,12 @@
 		SetTransparency(transp);
 	}
 
-	Block::Block(
-			QDataStream & str,
-			const int sub_,
-			const quint8 transp)
-			:
+	Block::Block(QDataStream & str, const int sub_, const quint8 transp) :
 			sub(sub_),
 			note(new QString)
 	{
 		SetTransparency(transp);
-		str >> nullWeight >>
-			direction >>
-			durability >> *note;
+		str >> direction >> durability >> *note;
 	}
 
 	Block::~Block() { delete note; }
@@ -271,7 +259,7 @@
 
 	int Plate::BeforePush(const int, Block * const) { return JUMP; }
 
-	float Plate::TrueWeight() const { return 10; }
+	ushort Plate::Weight() const { return Block::Weight()/4; }
 
 	Plate::Plate(const int sub)
 			:
@@ -295,17 +283,17 @@
 
 	int Ladder::BeforePush(const int, Block * const) { return MOVE_UP; }
 
-	float Ladder::TrueWeight() const { return 20; }
+	ushort Ladder::Weight() const { return Block::Weight()*3; }
 
 	bool Ladder::Catchable() const { return true; }
 
 	Ladder::Ladder(const int sub) :
-			Block(sub)
-	{transparent= NONSTANDARD;}
+			Block(sub, NONSTANDARD)
+	{}
 
 	Ladder::Ladder(QDataStream & str, const int sub) :
-			Block(str, sub)
-	{transparent= NONSTANDARD;}
+			Block(str, sub, NONSTANDARD)
+	{}
 
 //Weapon::
 	QString & Weapon::FullName(QString & str) const {
@@ -337,13 +325,17 @@
 		}
 	}
 
+	int  Weapon::DamageKind() const {
+		return ( IRON==Sub() ) ? THRUST : CRUSH;
+	}
+
 	int Weapon::BeforePush(const int, Block * const) {
 		return ( IRON==Sub() ) ? DAMAGE : NO_ACTION;
 	}
 
-	float Weapon::TrueWeight() const { return 1; }
+	ushort Weapon::Weight() const { return Block::Weight()/4; }
 
-	bool Weapon::IsWeapon() const { return true; }
+	int Weapon::Wearable() const { return WEARABLE_ARM; }
 
 	Weapon::Weapon(const int sub) :
 			Block(sub, NONSTANDARD)
@@ -382,17 +374,6 @@
 		}
 	}
 
-	float Pick::TrueWeight() const {
-		switch ( Sub() ) {
-			case IRON: return 10;
-			default:
-				fprintf(stderr,
-					"Pick::Pick: unlisted sub: %d\n",
-					Sub());
-				return 8;
-		}
-	}
-
 	Pick::Pick(const int sub) :
 			Weapon(sub)
 	{}
@@ -426,10 +407,11 @@
 				safe_fall_height)*10;
 			fall_height=0;
 			GetWorld()->
-				Damage(x_self, y_self, z_self-1, dmg);
-			emit Updated();
+				Damage(x_self, y_self, z_self-1, dmg,
+					DAMAGE_FALL);
 			return GetWorld()->
-				Damage(x_self, y_self,z_self, dmg);
+				Damage(x_self, y_self,z_self, dmg,
+					DAMAGE_FALL);
 		} else {
 			fall_height=0;
 			return false;
@@ -511,11 +493,36 @@
 
 	int Active::Damage(const ushort dmg, const int dmg_kind) {
 		const int last_dur=durability;
-		const int new_dur=Block::Damage(dmg, dmg_kind);
-		if ( last_dur != new_dur ) {
+		Block::Damage(dmg, dmg_kind);
+		if ( last_dur != durability ) {
+			switch ( dmg_kind ) {
+				case HUNGER:
+					ReceiveSignal(QObject::tr(
+						"You faint from hunger!"));
+					break;
+				case HEAT:
+					ReceiveSignal(QObject::tr(
+						"You burn!"));
+					break;
+				case BREATH:
+					ReceiveSignal(QObject::tr(
+						"You choke withot air!"));
+					break;
+				case DAMAGE_FALL:
+					ReceiveSignal(
+						QObject::tr(
+						"You fall, damage %1.").
+						arg(last_dur-durability));
+					break;
+				default:
+					ReceiveSignal(
+						QObject::tr(
+						"Received %1 damage!").
+						arg(last_dur-durability));
+			}
 			emit Updated();
 		}
-		return new_dur;
+		return durability;
 	}
 
 	void Active::ReceiveSignal(const QString & str) {
@@ -528,7 +535,7 @@
 	void Active::ReloadToEast()  { x_self-=SHRED_WIDTH; }
 
 	void Active::SaveAttributes(QDataStream & out) const {
-		out << timeStep << fall_height;
+		out << fall_height;
 	}
 
 	void Active::Register(
@@ -567,20 +574,21 @@
 			Block(sub, transp),
 			fall_height(0),
 			falling(false),
-			timeStep(0),
+			x_self(),
+			y_self(),
+			z_self(),
 			whereShred(0)
 	{}
 
-	Active::Active(
-			QDataStream & str,
-			const int sub,
-			const quint8 transp) //see default in blocks.h
-		:
+	Active::Active(QDataStream & str, const int sub, const quint8 transp) :
 			Block(str, sub, transp),
 			falling(false),
+			x_self(),
+			y_self(),
+			z_self(),
 			whereShred(0)
 	{
-		str >> timeStep >> fall_height;
+		str >> fall_height;
 	}
 
 	Active::~Active() {
@@ -714,6 +722,9 @@
 	}
 
 	bool Inventory::GetExact(Block * const block, const ushort num) {
+		if ( !block ) {
+			return true;
+		}
 		if ( inventory[num].isEmpty() ||
 				( *block==*inventory[num].top() &&
 				Number(num)<max_stack_size ) )
@@ -722,6 +733,16 @@
 			return true;
 		}
 		return false;
+	}
+
+	bool Inventory::MoveInside(const ushort num_from, const ushort num_to)
+	{
+		if ( GetExact(ShowBlock(num_from), num_to) ) {
+			Pull(num_from);
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	int Inventory::InscribeInv(const ushort num, const QString & str) {
@@ -751,7 +772,7 @@
 			"";
 	}
 
-	float Inventory::GetInvWeight(const ushort i) const {
+	ushort Inventory::GetInvWeight(const ushort i) const {
 		return ( inventory[i].isEmpty() ) ? 0 :
 			inventory[i].top()->Weight()*Number(i);
 	}
@@ -771,10 +792,11 @@
 		return str=inventory[num].top()->GetNote(str);
 	}
 
-	float Inventory::InvWeightAll() const {
-		float sum=0;
-		for (ushort i=0; i<Size(); ++i)
+	ushort Inventory::Weight() const {
+		ushort sum=0;
+		for (ushort i=0; i<Size(); ++i) {
 			sum+=GetInvWeight(i);
+		}
 		return sum;
 	}
 
@@ -866,7 +888,7 @@
 	}
 
 //Dwarf::
-	float Dwarf::TrueWeight() const {
+	ushort Dwarf::Weight() const {
 		World * const world=GetWorld();
 		return (
 				(InBounds(x_self+1, y_self) &&
@@ -889,7 +911,7 @@
 						x_self,
 						y_self-1,
 						z_self)->Catchable()) ) ?
-			0 : InvWeightAll()+60;
+			0 : Inventory::Weight()+Block::Weight();
 	}
 
 	Block * Dwarf::DropAfterDamage() const {
@@ -907,11 +929,13 @@
 	ushort Dwarf::Start() const { return 5; }
 
 	int Dwarf::DamageKind() const {
-		if ( Number(inRight) )
+		if ( Number(inRight) ) {
 			return ShowBlock(inRight)->DamageKind();
-		if ( Number(inLeft) )
+		} else if ( Number(inLeft) ) {
 			return ShowBlock(inLeft)->DamageKind();
-		return CRUSH;
+		} else {
+			return CRUSH;
+		}
 	}
 
 	ushort Dwarf::DamageLevel() const {
@@ -944,25 +968,25 @@
 
 	bool Dwarf::Access() const { return false; }
 
-	int Dwarf::Wield(const ushort num) {
-		Block *  const block=ShowBlock(num);
-		if  ( !block )
-			return 1;
-
-		if ( block->IsWeapon() ) {
-			if ( !ShowBlock(inRight) ) {
-				GetExact(block, inRight);
-				Pull(num);
-				return 0;
-			}
-			if ( !ShowBlock(inLeft) ) {
-				GetExact(block, inLeft);
-				Pull(num);
-				return 0;
-			}
+	bool Dwarf::MoveInside(ushort num_from, ushort num_to) {
+		Block *  const block=ShowBlock(num_from);
+		if  ( !block ) {
+			return true;
+		} else if ( num_to > onLegs ||
+				inRight==num_to || inLeft==num_to ||
+				( onHead==num_to &&
+					WEARABLE_HEAD==block->Wearable() ) ||
+				( onBody==num_to &&
+					WEARABLE_BODY==block->Wearable() ) ||
+				( onLegs==num_to &&
+					WEARABLE_LEGS==block->Wearable() ) )
+		{
+			GetExact(block, num_to);
+			Pull(num_from);
+			return true;
+		} else {
+			return false;
 		}
-		//TODO: clothes, armour
-		return 2;
 	}
 
 	void Dwarf::SaveAttributes(QDataStream & out) const {
@@ -999,14 +1023,13 @@
 
 	QString & Chest::FullName(QString & str) const {
 		switch (sub) {
-			case WOOD: return str="Wooden chest";
-			case STONE: return str="Stone chest";
+			case WOOD:  return str=QObject::tr("Wooden chest");
+			case STONE: return str=QObject::tr("Stone chest");
 			default:
 				fprintf(stderr,
-					"Chest::FullName(QString&): \
-					Chest has unknown substance: %d\n",
+					"Chest::FullName: unlisted sub: %d\n",
 					sub);
-				return str="Chest";
+				return str=QObject::tr("Chest");
 		}
 	}
 
@@ -1021,17 +1044,8 @@
 		return NO_ACTION;
 	}
 
-	float Chest::TrueWeight() const {
-		switch ( Sub() ) {
-			case WOOD:  return 100+InvWeightAll();
-			case IRON:  return 150+InvWeightAll();
-			case STONE: return 120+InvWeightAll();
-			default:
-				fprintf(stderr,
-					"Chest::Chest: unlisted sub: %d\n",
-					Sub());
-				return 100+InvWeightAll();
-		}
+	ushort Chest::Weight() const {
+		return Block::Weight()*4+Inventory::Weight();
 	}
 
 	void Chest::SaveAttributes(QDataStream & out) const {
@@ -1065,23 +1079,36 @@
 
 	int Pile::Sub() const { return Block::Sub(); }
 
-	QString & Pile::FullName(QString & str) const { return str="Pile"; }
+	QString & Pile::FullName(QString & str) const {
+		switch ( Sub() ) {
+			case DIFFERENT: return str=tr("Pile");
+			case WATER:     return str=tr("Snow");
+			default:
+				fprintf(stderr,
+					"Pile::FullName: unlisted sub: %d\n",
+					Sub());
+				return str=tr("Unknown pile");
+		}
+	}
 
 	Inventory * Pile::HasInventory() { return Inventory::HasInventory(); }
 
 	usage_types Pile::Use() { return Inventory::Use(); }
 
-	float Pile::TrueWeight() const { return InvWeightAll(); }
+	ushort Pile::Weight() const {
+		return Inventory::Weight() +
+			(( WATER==Sub() ) ? Block::Weight() : 0);
+	}
 
 	int Pile::Drop(const ushort n, Inventory * const inv) {
 		const int ret=Inventory::Drop(n, inv);
-		ifToDestroy=IsEmpty();
+		ifToDestroy=( WATER==Sub() ) ? false : IsEmpty();
 		return ret;
 	}
 
 	void Pile::Pull(const ushort num) {
 		Inventory::Pull(num);
-		ifToDestroy=IsEmpty();
+		ifToDestroy=( WATER==Sub() ) ? false : IsEmpty();
 	}
 
 	void Pile::SaveAttributes(QDataStream & out) const {
@@ -1092,13 +1119,13 @@
 
 	Pile::Pile(const int sub) :
 			Active(sub, NONSTANDARD),
-			Inventory(),
+			Inventory((WATER==sub) ? snow_inv_size : inv_size),
 			ifToDestroy(false)
 	{}
 
 	Pile::Pile(QDataStream & str, const int sub) :
 			Active(str, sub, NONSTANDARD),
-			Inventory(str)
+			Inventory(str, (WATER==sub) ? snow_inv_size : inv_size)
 	{
 		str >> ifToDestroy;
 	}
@@ -1106,8 +1133,21 @@
 //Liquid::
 	bool Liquid::CheckWater() const {
 		World * const world=GetWorld();
-		return ( WATER==world->Sub(x_self, y_self, z_self-1) ||
-				WATER==world->Sub(x_self, y_self, z_self+1));
+		return (
+				WATER==world->Sub(x_self, y_self, z_self-1) ||
+				WATER==world->Sub(x_self, y_self, z_self+1) ||
+				(InBounds(x_self-1, y_self) &&
+					WATER==world->Sub(
+						x_self-1, y_self, z_self)) ||
+				(InBounds(x_self+1, y_self) &&
+					WATER==world->Sub(
+						x_self+1, y_self, z_self)) ||
+				(InBounds(x_self, y_self-1) &&
+					WATER==world->Sub(
+						x_self, y_self-1, z_self)) ||
+				(InBounds(x_self, y_self+1) &&
+					WATER==world->Sub(
+						x_self, y_self+1, z_self)));
 	}
 
 	void Liquid::ActRare() {
@@ -1152,12 +1192,6 @@
 					sub);
 				return str="Unknown liquid";
 		}
-	}
-
-	int Liquid::Damage(const ushort dam, const int dam_kind) {
-		return ( HEAT==dam_kind ) ?
-			durability-=dam :
-			durability;
 	}
 
 	int Liquid::Temperature() const { return ( WATER==sub ) ? 0 : 1000; }
@@ -1235,7 +1269,9 @@
 
 	int Bush::Movable() const { return NOT_MOVABLE; }
 
-	float Bush::TrueWeight() const { return InvWeightAll()+20; }
+	ushort Bush::Weight() const {
+		return Inventory::Weight()+Block::Weight();
+	}
 
 	void Bush::ActRare() {
 		if ( 0==qrand()%(SECONDS_IN_HOUR*4) ) {
@@ -1362,8 +1398,6 @@
 
 	int Rabbit::Kind() const { return RABBIT; }
 
-	float Rabbit::TrueWeight() const { return 20; }
-
 	int Rabbit::Eat(Block * const to_eat) {
 		if ( NULL==to_eat )
 			return 2;
@@ -1457,7 +1491,7 @@
 
 	int Workbench::Kind() const { return WORKBENCH; }
 
-	float Workbench::TrueWeight() const { return InvWeightAll()+80; }
+	ushort Workbench::Weight() const { return Block::Weight()*4; }
 
 	usage_types Workbench::Use() { return OPEN; }
 
@@ -1608,14 +1642,12 @@
 		}
 	}
 
-	int Clock::BeforePush(const int dir, Block * const) {
-		if ( DOWN!=dir ) {
-			Use();
-		}
+	int Clock::BeforePush(const int, Block * const) {
+		Use();
 		return NO_ACTION;
 	}
 
-	float Clock::TrueWeight() const { return 0.1f; }
+	ushort Clock::Weight() const { return Block::Weight()/10; }
 
 	bool Clock::ShouldFall() const { return false; }
 

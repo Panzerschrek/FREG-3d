@@ -95,8 +95,8 @@ struct r_ShredInfo
     bool quads_updated;
     bool visibly_information_is_valid;
 
-	r_LocalModelList model_list;
-	unsigned int model_count_to_draw;
+    r_LocalModelList model_list;
+    unsigned int model_count_to_draw;
 
     void GetQuadCount();
     void GetVisiblyInformation( );
@@ -127,7 +127,8 @@ public:
 
     inline void SetCamAngle( m_Vec3 a );
     inline void SetCamPosition( m_Vec3 p );
-     inline void SetBuildPosition( m_Vec3 p );
+    inline void SetBuildPosition( m_Vec3 p );
+    inline void SetActiveInventorySlot( int n, bool player_inventory );
     inline void RotateCam( m_Vec3& r);
 
     inline int ViewportWidth()
@@ -162,6 +163,7 @@ private:
 
     void BuildWorld();
     void UpdateData();
+    void UpdateGPUData();
     // функции работы с лоскутами
     void BuildShredList();
     //void UpdateShredGPUData( r_ShredInfo* shred );
@@ -217,15 +219,18 @@ private:
     unsigned int vertices_in_buffer;//real count of vertices in buffer
     unsigned int index_buffer_size;
 
-	//shred list
+    //shred list
     r_ShredInfo* shreds, *draw_shreds;
     r_ShredInfo** shreds_to_draw_list;
     quint32 *shreds_to_draw_indeces, *shreds_to_draw_quad_count, *shreds_to_draw_base_vertices;
     unsigned int shreds_to_draw_count;
 
-	//water shred list
-	quint32 *water_quads_base_vertices, *water_quads_to_draw_count;
-	unsigned int water_shreds_to_draw_count;
+    //water shred list
+    quint32 *water_quads_base_vertices, *water_quads_to_draw_count;
+    unsigned int water_shreds_to_draw_count;
+
+
+    int active_inventory_slot, active_inventory;
 
     m_Mat4 view_matrix;
     m_Vec3 cam_position, build_position, frame_cam_position, cam_angle, frame_cam_angle;
@@ -320,8 +325,8 @@ private:
     void CalculateFPS();
 
 
-	//water
-	GLuint water_texture;
+    //water
+    GLuint water_texture;
 
     //deferred shading
     m_Mat3 normal_matrix;//world2viewspace
@@ -331,15 +336,18 @@ private:
     void MakeDeferredShading();
 
     float sky_ambient_light, fire_ambient_light, direct_sun_light, sky_light;
-	void CalculateLightPower();
+    void CalculateLightPower();
 
     QSettings config;
     bool filter_world_texture, filter_shadowmap_texture;
     unsigned int shadowmap_size;
 
     bool bloom, antialiasing, edge_detect, deferred_shading;
-    public:
-	const QSettings* Config() const{ return &config; }
+public:
+    const QSettings* Config() const
+    {
+        return &config;
+    }
     void LoadConfig();
 
 
@@ -389,18 +397,26 @@ inline void r_Renderer::UpdateAll()
 
 inline void r_Renderer::SetUnderwaterMode( bool underwater )
 {
-	this->underwater= underwater;
+    this->underwater= underwater;
 }
 
 inline void r_Renderer::SetCursorPos( float x, float y )
 {
-	cursor_pos.x= x;
-	cursor_pos.y= y;
+    cursor_pos.x= x;
+    cursor_pos.y= y;
 }
 
 inline void r_Renderer::SetBuildPosition( m_Vec3 p )
 {
-	build_position= p;
+    build_position= p;
 }
 
+inline void r_Renderer::SetActiveInventorySlot( int n, bool player_inventory )
+{
+    active_inventory_slot= n;
+    if( player_inventory )
+    	active_inventory= 0;
+	else
+		active_inventory = 1;
+}
 #endif//RENDERER_H

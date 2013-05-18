@@ -134,6 +134,10 @@ vec3 Soap()//"Ìûכüצמ" like on PS3
     vec3 c;
     vec2 tc2= f_tex_coord, tc;
 
+   //lense effect
+   // tc2= tc2 * 2.0 - vec2( 1.0, 1.0 );
+   // tc2= 0.5 * 0.25 * tc2 * ( vec2( 3.0, 3.0 ) + abs( tc2 ) ) + vec2( 0.5, 0.5 );
+    
     tc2.x+= 2.0 * inv_screen_size.x * sin( f_tex_coord.y * 20.0 + time * 2.0 );
     tc2.y+=  2.0 * inv_screen_size.y * sin( f_tex_coord.x * 20.0 + time * 2.0 );
 

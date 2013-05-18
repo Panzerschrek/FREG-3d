@@ -54,6 +54,7 @@ long World::Latitude() const { return latitude; }
 ushort World::TimeStepsInSec() { return time_steps_in_sec; }
 
 long World::MapSize() const { return mapSize; }
+QTextStream * World::MapStream() { return worldMapStream; }
 
 ushort World::SunMoonX() const {
 	return ( NIGHT==PartOfDay() ) ?
@@ -117,8 +118,9 @@ void World::ReloadAllShreds(
 	newX=new_x;
 	newY=new_y;
 	newZ=new_z;
-	if ( numActiveShreds > new_num_shreds )
+	if ( numActiveShreds > new_num_shreds ) {
 		numActiveShreds=new_num_shreds;
+	}
 	newNumShreds=new_num_shreds;
 	toReSet=true;
 }
@@ -220,15 +222,20 @@ void World::PutNormalBlock(
 	PutBlock(Normal(sub), x, y, z);
 }
 
-Block * World::Normal(const int sub) { return block_manager.NormalBlock(sub); }
+Block * World::Normal(const int sub, const int dir) {
+	return block_manager.NormalBlock(sub, dir);
+}
 void World::DeleteBlock(Block * const block) {
 	block_manager.DeleteBlock(block);
 }
 
 Block * World::ReplaceWithNormal(Block * const block) {
-	if ( block!=Normal(block->Sub()) && *block==*Normal(block->Sub()) ) {
+	if ( block!=Normal(block->Sub()) &&
+			*block==*Normal(block->Sub(), block->GetDir()) )
+	{
+		const int sub=block->Sub();
 		block_manager.DeleteBlock(block);
-		return Normal(block->Sub());
+		return Normal(sub);
 	} else {
 		return block;
 	}
@@ -259,7 +266,7 @@ void World::ReloadShreds(const int direction) {
 	RemSun();
 	switch ( direction ) {
 		case NORTH:
-			--longitude;
+			//--longitude;
 			for (x=0; x<numShreds; ++x) {
 				delete shreds[numShreds*(numShreds-1)+x];
 				for (y=numShreds-2; y>=0; --y) {
@@ -268,12 +275,13 @@ void World::ReloadShreds(const int direction) {
 						ReloadToNorth();
 				}
 				shreds[x]=new Shred(this, x, 0,
-						longitude-numShreds/2,
+						longitude-1-numShreds/2,
 						latitude-numShreds/2+x);
 			}
+			--longitude;
 		break;
 		case SOUTH:
-			++longitude;
+			//++longitude;
 			for (x=0; x<numShreds; ++x) {
 				delete shreds[x];
 				for (y=1; y<numShreds; ++y) {
@@ -283,13 +291,13 @@ void World::ReloadShreds(const int direction) {
 				}
 				shreds[numShreds*(numShreds-1)+x]=new
 					Shred(this, x, numShreds-1,
-						longitude+numShreds/2,
+						longitude+1+numShreds/2,
 						latitude-numShreds/2+x);
-
 			}
+			++longitude;
 		break;
 		case EAST:
-			++latitude;
+			//++latitude;
 			for (y=0; y<numShreds; ++y) {
 				delete shreds[y*numShreds];
 				for (x=1; x<numShreds; ++x) {
@@ -300,12 +308,12 @@ void World::ReloadShreds(const int direction) {
 				shreds[numShreds-1+y*numShreds]=new
 					Shred(this, numShreds-1, y,
 						longitude-numShreds/2+y,
-						latitude+numShreds/2);
-
+						latitude+1+numShreds/2);
 			}
+			++latitude;
 		break;
 		case WEST:
-			--latitude;
+			//--latitude;
 			for (y=0; y<numShreds; ++y) {
 				delete shreds[numShreds-1+y*numShreds];
 				for (x=numShreds-2; x>=0; --x) {
@@ -315,9 +323,9 @@ void World::ReloadShreds(const int direction) {
 				}
 				shreds[y*numShreds]=new Shred(this, 0, y,
 						longitude-numShreds/2+y,
-						latitude-numShreds/2);
-
+						latitude-1-numShreds/2);
 			}
+			--latitude;
 		break;
 		default: fprintf(stderr,
 			"World::ReloadShreds(int): invalid direction: %d\n",
@@ -372,19 +380,15 @@ void World::PhysEvents() {
 					deferredActionX,
 					deferredActionY,
 					deferredActionZ,
-					World::TurnRight(deferredActionDir),
-					GetBlock(
-						deferredActionXFrom,
-						deferredActionYFrom,
-						deferredActionZFrom));
+					TurnRight(deferredActionDir),
+					deferredActionWho);
 				if ( !build /*no errors*/ ) {
-					Inventory * const inv=GetBlock(
-							deferredActionXFrom,
-							deferredActionYFrom,
-							deferredActionZFrom)->
-								HasInventory();
-					if ( inv )
+					Inventory * const inv=
+						deferredActionWho->
+							HasInventory();
+					if ( inv ) {
 						inv->Pull(deferredActionData1);
+					}
 				}
 			} break;
 			case DEFERRED_DAMAGE:
@@ -499,22 +503,53 @@ bool World::DirectlyVisible(
 		float x_from, float y_from, float z_from,
 		const ushort x_to, const ushort y_to, const ushort z_to)
 const {
-	if ( x_from==x_to && y_from==y_to && z_from==z_to ) {
-		return true;
-	}
-	const ushort xdif=abs(x_to-(ushort)x_from);
-	const ushort ydif=abs(y_to-(ushort)y_from);
-	const ushort zdif=abs(z_to-(ushort)z_from);
-	ushort max=(zdif > ydif) ?
-		zdif :
-		ydif;
-	if ( xdif > max ) {
-		max=xdif;
-	}
+	return ( x_from==x_to && y_from==y_to && z_from==z_to ) ?
+		true : (
+		( x_to<x_from && y_to<y_from ) ||
+		( x_to>x_from && y_to<y_from && y_to>(2*x_from-x_to-3) ) ||
+		( x_to<x_from && y_to>y_from && y_to>(2*x_from-x_to-3) ) ) ?
+			NegativeVisible(x_from, y_from, z_from,
+				x_to, y_to, z_to) :
+			PositiveVisible(x_from, y_from, z_from,
+				x_to, y_to, z_to);
+}
+
+bool World::NegativeVisible(
+		float x_from, float y_from, float z_from,
+		short x_to, short y_to, const short z_to)
+const {
+	//this function is like World::PositiveVisible,
+	//except those 4 lines:
+	x_from=-x_from;
+	y_from=-y_from;
+	x_to=-x_to;
+	y_to=-y_to;
+	const ushort max=qMax(qAbs(x_to-(short)x_from),
+		qMax(qAbs(z_to-(short)z_from), qAbs(y_to-(short)y_from)));
 	const float x_step=(x_to-x_from)/max;
 	const float y_step=(y_to-y_from)/max;
 	const float z_step=(z_to-z_from)/max;
+	for (ushort i=1; i<max; ++i) {
+		if ( BLOCK_OPAQUE==Transparent(
+				-qRound(x_from+=x_step),
+				-qRound(y_from+=y_step),
+				qRound(z_from+=z_step)) )
+		{
+			return false;
+		}
+	}
+	return true;
+}
 
+bool World::PositiveVisible(
+		float x_from, float y_from, float z_from,
+		const ushort x_to, const ushort y_to, const ushort z_to)
+const {
+	const ushort max=qMax(qAbs(x_to-(short)x_from),
+		qMax(qAbs(z_to-(short)z_from), qAbs(y_to-(short)y_from)));
+	const float x_step=(x_to-x_from)/max;
+	const float y_step=(y_to-y_from)/max;
+	const float z_step=(z_to-z_from)/max;
 	for (ushort i=1; i<max; ++i) {
 		if ( BLOCK_OPAQUE==Transparent(
 				qRound(x_from+=x_step),
@@ -531,7 +566,6 @@ bool World::Visible(
 		const ushort x_from, const ushort y_from, const ushort z_from,
 		const ushort x_to,   const ushort y_to,   const ushort z_to)
 const {
-	//TODO: make this symmetric
 	short temp;
 	return (
 		(DirectlyVisible(x_from, y_from, z_from, x_to, y_to, z_to)) ||
@@ -668,6 +702,7 @@ void World::SetDeferredAction(
 		const ushort y_from,
 		const ushort z_from,
 		Block * const what,
+		Block * const who,
 		const int data1,
 		const int data2)
 {
@@ -680,6 +715,7 @@ void World::SetDeferredAction(
 	deferredActionDir=dir;
 	deferredActionType=action;
 	deferredActionWhat=what;
+	deferredActionWho=who;
 	deferredActionData1=data1;
 	deferredActionData2=data2;
 }
@@ -740,7 +776,7 @@ bool World::Damage(
 		return false;
 	}
 	Block * const dropped=temp->DropAfterDamage();
-	if ( PILE!=temp->Kind() && (temp->HasInventory() || dropped) ) {
+	if ( TIME!=dmg_kind && (temp->HasInventory() || dropped) ) {
 		Block * const new_pile=block_manager.NewBlock(PILE, DIFFERENT);
 		SetBlock(new_pile, i, j, k);
 		Inventory * const inv=temp->HasInventory();
@@ -771,7 +807,7 @@ int World::Build(
 		const ushort i, const ushort j, const ushort k,
 		const quint8 dir, Block * const who) //defaults exist
 {
-	if ( !InBounds(i, j, k) || AIR!=Sub(i, j, k)  ) {
+	if ( !InBounds(i, j, k) || ENVIRONMENT!=Movable(i, j, k)  ) {
 		if ( who ) {
 			who->ReceiveSignal(tr("Cannot build here."));
 		}
@@ -785,7 +821,11 @@ int World::Build(
 	}
 	block->Restore();
 	SetBlock(block, i, j, k);
-	block->SetDir(dir);
+	ReplaceWithNormal(i, j, k);
+	if ( block!=block_manager.NormalBlock(block->Sub(), block->GetDir()) )
+	{
+		block->SetDir(dir);
+	}
 
 	ReEnlighten(i, j, k);
 	return 0;
@@ -796,10 +836,11 @@ void World::Inscribe(const ushort i, const ushort j, const ushort k) {
 		return;
 	}
 	Block * block=GetBlock(i, j, k);
-	if ( block==World::Normal(block->Sub()) )
+	if ( block==Normal(block->Sub()) ) {
 		SetBlock(block=block_manager.
 				NewBlock(block->Kind(), block->Sub()),
 			i, j, k);
+	}
 	QString str="No note received\n";
 	emit GetString(str);
 	block->Inscribe(str);
@@ -881,7 +922,7 @@ int World::Sub(const ushort x, const ushort y, const ushort z) const {
 int World::Movable(const ushort x, const ushort y, const ushort z) const {
 	return GetShred(x, y)->Movable(x%SHRED_WIDTH, y%SHRED_WIDTH, z);
 }
-float World::Weight(const ushort x, const ushort y, const ushort z) const {
+ushort World::Weight(const ushort x, const ushort y, const ushort z) const {
 	return GetShred(x, y)->Weight(x%SHRED_WIDTH, y%SHRED_WIDTH, z);
 }
 
@@ -940,7 +981,7 @@ void World::RemSun() {
 }
 
 void World::LoadAllShreds() {
-	shreds=new Shred *[numShreds*numShreds];
+	shreds=new Shred *[(ulong)numShreds*(ulong)numShreds];
 	for (long i=latitude -numShreds/2, x=0; x<numShreds; ++i, ++x)
 	for (long j=longitude-numShreds/2, y=0; y<numShreds; ++j, ++y) {
 		shreds[y*numShreds+x]=new Shred(this, x, y, j, i);
@@ -964,7 +1005,7 @@ void World::SetNumActiveShreds(ushort num) {
 			"Invalid shreds number:%1x%2.").arg(num).arg(num));
 		++num;
 	}
-	if ( !num ) {
+	if ( num < 3 ) {
 		emit Notify(QString(
 			"Active shreds number too small: %1x%2.").
 				arg(num).
@@ -1006,14 +1047,16 @@ World::World(const QString & world_name) :
 	QFile map(worldName+"/map.txt");
 	if ( map.open(QIODevice::ReadOnly | QIODevice::Text) ) {
 		mapSize=int(qSqrt(1+4*map.size())-1)/2;
-	} else if ( map.open(QIODevice::WriteOnly |
-			QIODevice::Text) )
-	{
-		char little_map[]=".\n";
-		map.write(little_map);
+	} else if ( map.open(QIODevice::WriteOnly | QIODevice::Text) ) {
+		map.write(".\n");
+		map.close();
+		if ( !map.open(QIODevice::ReadOnly | QIODevice::Text) ) {
+			fputs("World::World:: cannot open map.txt.", stderr);
+		}
 		mapSize=1;
 	}
-
+	worldMap=map.readAll();
+	worldMapStream=new QTextStream(worldMap, QIODevice::ReadOnly);
 	if ( 1!=numShreds%2 ) {
 		++numShreds;
 		fprintf(stderr,
@@ -1043,7 +1086,6 @@ World::World(const QString & world_name) :
 			numActiveShreds);
 		numActiveShreds=3;
 	}
-
 	LoadAllShreds();
 }
 

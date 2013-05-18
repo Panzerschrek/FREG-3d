@@ -24,6 +24,9 @@
 class QFile;
 class World;
 
+const char DEFAULT_SHRED='.';
+const char OUT_BORDER_SHRED='~';
+
 class Shred {
 	Block * blocks[SHRED_WIDTH][SHRED_WIDTH][HEIGHT];
 	uchar lightMap[SHRED_WIDTH][SHRED_WIDTH][HEIGHT];
@@ -63,8 +66,8 @@ class Shred {
 	///Puts block to coordinates, not activates it (e.g. in World::Move)
 	void PutBlock(Block * block, ushort x, ushort y, ushort z);
 	///Puts normal block to coordinates
-	void PutNormalBlock(int sub, ushort x, ushort y, ushort z);
-	static Block * Normal(int sub);
+	void PutNormalBlock(int sub, ushort x, ushort y, ushort z, int dir=UP);
+	static Block * Normal(int sub, int dir=UP);
 
 	uchar LightMap(ushort x, ushort y, ushort z) const;
 	bool SetLightMap(uchar level, ushort x, ushort y, ushort z);
@@ -76,7 +79,7 @@ class Shred {
 	int Durability(ushort x, ushort y, ushort z) const;
 	int Movable(ushort x, ushort y, ushort z) const;
 	int Transparent(ushort x, ushort y, ushort z) const;
-	float Weight(ushort x, ushort y, ushort z) const;
+	ushort Weight(ushort x, ushort y, ushort z) const;
 	uchar LightRadius(ushort x, ushort y, ushort z) const;
 
 	int LoadShred(QFile &);
@@ -105,15 +108,22 @@ class Shred {
 	void Water( long, long);
 	void Pyramid();
 	void Mountain();
+	void Hill();
 	void Desert();
 	//block combinations section (trees, buildings, etc):
 	bool Tree(ushort x, ushort y, ushort z, ushort height);
 
-	//langd generation
+	//land generation
 	private:
-	void ShredLandAmplitudeAndLevel( long longi, long lati, ushort* l, float* a ) const;
-	void ShredNominalAmplitudeAndLevel( char shred_type, ushort* l, float* a );
+	void ShredLandAmplitudeAndLevel(
+			long longi, long lati,
+			ushort* l,
+			float* a) const;
+	void ShredNominalAmplitudeAndLevel(
+			char shred_type,
+			ushort* l,
+			float* a) const;
 	void AddWater();
-	ushort FlatUndeground( short depth= 0 );
+	ushort FlatUndeground(short depth=0);
 };//class Shred
 #endif

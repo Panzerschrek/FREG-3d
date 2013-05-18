@@ -23,6 +23,7 @@
 #include "renderer.h"
 #include "../screen.h"
 #include "../Player.h"
+#include "rendering_constants.h"
 r_Renderer* r_Renderer::current_renderer= NULL;
 
 void r_Renderer::CalculateFPS()
@@ -171,11 +172,11 @@ void r_Renderer::DrawWorld()
     view_matrix= tr * rotZ * rotX *chang* per;
 
 
-	#ifdef OGL21
-	texture_manager.TextureAtlas()->BindTexture(0);
-	#else
+#ifdef OGL21
+    texture_manager.TextureAtlas()->BindTexture(0);
+#else
     texture_manager.TextureArray()->Bind(0);
-    #endif
+#endif
 
     world_shader.Bind();
     world_shader.Uniform( "proj_mat", view_matrix );
@@ -243,14 +244,14 @@ void r_Renderer::DrawWorld()
                           GL_UNSIGNED_INT, (GLvoid* const*)shreds_to_draw_indeces,
                           shreds_to_draw_count );*/
     world_buffer.Bind();
-    #ifdef OGL21
+#ifdef OGL21
     glMultiDrawArrays( GL_QUADS, shreds_to_draw_base_vertices,
-					 shreds_to_draw_quad_count, shreds_to_draw_count );
-    #else
+                       shreds_to_draw_quad_count, shreds_to_draw_count );
+#else
     glMultiDrawElementsBaseVertex( GL_TRIANGLES, shreds_to_draw_quad_count,
                                    GL_UNSIGNED_SHORT, (GLvoid* const*)shreds_to_draw_indeces,
                                    shreds_to_draw_count, shreds_to_draw_base_vertices );
-	#endif
+#endif
     models_shader.Bind();
     models_shader.Uniform( "tex", 0 );
     models_shader.Uniform( "proj_mat", view_matrix );
@@ -367,38 +368,41 @@ void r_Renderer::DrawWater()
 
     world_buffer.Bind();
 
-    #ifdef OGL21
+#ifdef OGL21
     glMultiDrawArrays( GL_QUADS, water_quads_base_vertices,
-					 water_quads_to_draw_count, water_shreds_to_draw_count );
-    #else
+                       water_quads_to_draw_count, water_shreds_to_draw_count );
+#else
     glMultiDrawElementsBaseVertex( GL_TRIANGLES, water_quads_to_draw_count,
                                    GL_UNSIGNED_SHORT, (GLvoid* const*)shreds_to_draw_indeces,
                                    water_shreds_to_draw_count, water_quads_base_vertices );
-	#endif
+#endif
 }
 void r_Renderer::DrawHUD()
 {
     m_Vec3 p;
-    //\F2\E5\F5\ED\E8\F7\E5\F1\EA\E8\E5 \E4\E0\ED\ED\FB\E5
-    p.y= 0.9;
-    m_Vec3 text_color( 1.0, 1.0, 0.3 );
-    p= AddText( -0.9, p.y, &text_color, 1.0, "fps: %d\n", fps );
-    p= AddText( -0.9, p.y, &text_color, 1.0, "max fps: %2.1f\n", max_fps_to_draw );
-    p= AddText( -0.9, p.y, &text_color, 1.0, "min fps: %2.1f\n", min_fps_to_draw );
-    p= AddText( -0.9, p.y, &text_color, 1.0, "time: %dh %dm\n",
+
+    //technical information
+	p.y=  1.0f - float( 2 * DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y );
+    m_Vec3 text_color( 1.0f, 1.0f, 0.3f );
+    p= AddText( float( DEFAULT_FONT_WIDTH ) * 2.0f / float( viewport_x ) - 1.0f,
+										 p.y, &text_color, 1.0, "fps: %d\n", fps );
+    p= AddText( p.x, p.y, &text_color, 1.0, "max fps: %2.1f\n", max_fps_to_draw );
+    p= AddText( p.x, p.y, &text_color, 1.0, "min fps: %2.1f\n", min_fps_to_draw );
+    p= AddText( p.x, p.y, &text_color, 1.0, "time: %dh %dm\n",
                 ( world->Time() / SECONDS_IN_HOUR ) % 24,
                 world->Time() % SECONDS_IN_HOUR );
 
-    p= AddText( -0.9, p.y, &text_color, 1.0, "shreds: %d/%d\n", shreds_to_draw_count, visibly_world_size[0] * visibly_world_size[1] );
-    p= AddText( -0.9, p.y, &text_color, 1.0, "shreds updated: %d\n", shreds_update_per_second_to_draw );
-    p= AddText( -0.9, p.y, &text_color, 1.0, deferred_shading ? "deferred shading\n" : "forward rendering\n");
+    p= AddText( p.x, p.y, &text_color, 1.0, "shreds: %d/%d\n", shreds_to_draw_count, visibly_world_size[0] * visibly_world_size[1] );
+    p= AddText( p.x, p.y, &text_color, 1.0, "shreds updated: %d\n", shreds_update_per_second_to_draw );
+    p= AddText( p.x, p.y, &text_color, 1.0, deferred_shading ? "deferred shading\n" : "forward rendering\n");
 
-    //\E4\E0\ED\ED\FB\E5 \EE \E7\E4\EE\F0\EE\E2\FC\E5
+    //hp string
     text_color.x= text_color.y= text_color.z= 0.8;
     char hp_string[32];
     sprintf( hp_string, "HP: %3d\%[", player->HP() );
-
-    p= AddText( 0.5, -0.7, &text_color, 1.0, hp_string );
+	p.x= 1.0f - float( 22 * DEFAULT_FONT_WIDTH ) * 2.0f / float( viewport_x );
+	p.y=  float( 6 * DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y ) - 1.0f;
+    p= AddText( p.x, p.y, &text_color, 1.0, hp_string );
     text_color.x= 0.8, text_color.y= 0.1, text_color.z= 0.1;
     for( int i=0; i< 10; i++ )
         p= AddText( p.x, p.y, &text_color, 1.0, ( player->HP()/10 <= i ) ? " " : "#"  );
@@ -406,9 +410,10 @@ void r_Renderer::DrawHUD()
     text_color.x= text_color.y= text_color.z= 0.8;
     p= AddText( p.x, p.y, &text_color, 1, "]\n" );
 
-    //\E4\E0\ED\ED\FB\E5 \EE \E4\FB\F5\E0\ED\E8\E8
+    //br string
     sprintf( hp_string, "BR: %3d\%[", player->Breath() );
-    p= AddText( 0.5, p.y, &text_color, 1.0, hp_string );
+    p.x= 1.0f - float( 22 * DEFAULT_FONT_WIDTH ) * 2.0f / float( viewport_x );
+    p= AddText( p.x, p.y, &text_color, 1.0, hp_string );
     text_color.x= 0.1, text_color.y= 0.1, text_color.z= 0.8;
     for( int i=0; i< 10; i++ )
         p= AddText( p.x, p.y, &text_color, 1, ( player->Breath()/10 <= i ) ? " " : "#"  );
@@ -417,30 +422,20 @@ void r_Renderer::DrawHUD()
     p= AddText( p.x, p.y, &text_color, 1.0, "]\n" );
 
 
-    //\F1\EE\F1\F2\EE\FF\ED\E8\E5 \E3\EE\EB\EE\E4\E0
+	//satiation
     text_color.x= 0.1, text_color.y= 0.8, text_color.z= 0.1;
-    char* satiation_str;
+	p.x= 1.0f - float( 22 * DEFAULT_FONT_WIDTH ) * 2.0f / float( viewport_x );
+    AddText( p.x, p.y, &text_color, 1, "satiation: %d\n", player->Satiation()  );
 
-    if( SECONDS_IN_DAY * world->TimeStepsInSec()/4 < player->Satiation() )
-        satiation_str= "Gorged\n\n";
-
-    else if( 3 * SECONDS_IN_DAY * world->TimeStepsInSec()/4 < player->Satiation() )
-        satiation_str= "Full\n\n";
-
-    else if(SECONDS_IN_DAY * world->TimeStepsInSec()/4 > player->Satiation() )
-        satiation_str= "Hungry\n\n";
-
-
-    AddText( 0.5, p.y, &text_color, 1, satiation_str );
-
-    //\E2\FB\E2\EE\E4 \F1\EE\EE\E1\F9\E5\ED\E8\E9
+    //notify log
     text_color.x= text_color.y= text_color.z= 0.8;
-    p.y= -0.6;
+    p.x= float( DEFAULT_FONT_WIDTH ) * 2.0f / float( viewport_x ) - 1.0f;
+	p.y= float( R_NUMBER_OF_NOTIFY_LINES * DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y ) - 1.0f;
     for( int i= R_NUMBER_OF_NOTIFY_LINES - 1, n; i>= 0; i-- )
     {
         n= ( notify_log_last_line - 1 - i ) % R_NUMBER_OF_NOTIFY_LINES;
         if(  notify_log[n][0] != 0 )
-            p=AddTextUnicode( -0.99, p.y, &text_color, 1.0, (const quint16*) notify_log[n] );
+            p=AddTextUnicode( p.x, p.y, &text_color, 1.0, (const quint16*) notify_log[n] );
     }
 
 }
@@ -479,8 +474,7 @@ void r_Renderer::DrawBuildCube()
 }
 void r_Renderer::DrawInventory()
 {
-    // if( !inventory_opened )
-    //   return;
+    //current menu width: player - 33 symbols, inventory - 27 stmbols
     if( player->UsingSelfType() != OPEN )
         return;
 
@@ -489,102 +483,127 @@ void r_Renderer::DrawInventory()
 
     unsigned int i, num;
     m_Vec3 p;
-    m_Vec3 text_color( 0.8, 0.8, 0.8 );
-    p= AddText( -0.95, 0.5, &text_color, 1, "Your Inventory:\n" );
+    m_Vec3 text_color( 0.8f, 0.8f, 0.8f );
+    const m_Vec3 primary_text_color( 0.8f, 0.8f, 0.8f );
+    int selected_inventoy_slot;
+
 
     QString str;
     Inventory* inv= player->GetP()->HasInventory();
 
 
-    //\E2\FB\E2\EE\E4 \E2\E5\F0\F5\ED\E5\E9 \F1\F2\F0\EE\EA\E8 \E8 \F2\E5\EB\E0 \E8\F0\EE\EA\E0
+    selected_inventoy_slot= int( ( (0.5f + 3.0f * float(DEFAULT_FONT_HEIGHT ) * 2.0f
+                                    / float( viewport_y ) - cursor_pos.y ) * float(viewport_y) * 0.5f - 0.5f )
+                                 / float(DEFAULT_FONT_HEIGHT) ) - 1;
+    if( cursor_pos.x < 2.0f * float( DEFAULT_FONT_WIDTH ) / float(viewport_x) - 1.0f ||
+            cursor_pos.x > 2.0f * ( PLAYER_INVENTORY_WIDTH + 1 ) * float( DEFAULT_FONT_WIDTH )/ float(viewport_x) - 1.0f )
+        selected_inventoy_slot= -1;
+
     static const char* player_gibs_format_str[]=
     {
-        "Head       a) %15-s %2d    %4.1f\n",
-        "Right hand b) %15-s %2d    %4.1f\n",
-        "Left hand  c) %15-s %2d    %4.1f\n",
-        "Body       d) %15-s %2d    %4.1f\n",
-        "Legs       e) %15-s %2d    %4.1f\n"
+        "Head : %15-s %1d  %0*.*d\n",
+        "Rhand: %15-s %1d  %0*.*d\n",
+        "Lhand: %15-s %1d  %0*.*d\n",
+        "Body : %15-s %1d  %0*.*d\n",
+        "Legs : %15-s %1d  %0*.*d\n",
     };
-    p= AddText( p.x, p.y, &text_color, 1, "%29-s num weight\n", ""  );
+    static const char* format_str= "       %15-s %1d  %0*.*d\n";
+    static const char* top_format_str= "%23-snum weight\n";
+    static const char* bottom_format_str= "Total:%20-s%0*.*d";
+
+    static const char* right_format_str= " %15-s %1d  %0*.*d\n";
+    static const char* right_top_format_str= "%17-snum weight\n";
+    static const char* right_bottom_format_str= "Total:%14-s%0*.*d";
+
+    //inventory name
+    // p= AddText( 2.0f * 10.0f / float(viewport_x) - 1.0f , 0.5f + 84.0f / float( viewport_y ), &primary_text_color, 1, "Your Inventory:\n" );
+    p= AddText( 2.0f * float( DEFAULT_FONT_WIDTH )/ float(viewport_x) - 1.0f ,
+                0.5f + 3.0f * float(DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y ),
+                &primary_text_color, 1, "Your Inventory:\n" );
+    //inventory head
+    p= AddText( p.x, p.y, &primary_text_color, 1, top_format_str, ""  );
+
+    //inventory body - player gibs
     for( i=0; i< 5; i++ )
     {
-        if( p.y > ( cursor_pos.y - cursor_pos.z ) && p.y < cursor_pos.y  )
-        {
-            text_color=m_Vec3( 0.0f, 0.0f, 0.0f );
-            is_cursor= true;
-        }
+        if( i == active_inventory_slot && active_inventory == 0  )
+            text_color= m_Vec3( 1.0f, 0.1f, 0.1f );
+        else if( i == selected_inventoy_slot )
+            text_color= m_Vec3( 1.0f, 1.0f, 0.1f );
+        else
+            text_color= primary_text_color;
+
         p= AddText( p.x, p.y, &text_color, 1, player_gibs_format_str[i],
                     inv->InvFullName(str, i).toLocal8Bit().constData(),
-                    inv->Number(i), inv->GetInvWeight(i) );
-        if( is_cursor )
-        {
-            text_color=m_Vec3( 0.8, 0.8, 0.8  );
-            is_cursor= false;
-        }
+                    inv->Number(i), 7, 1, inv->GetInvWeight(i) );
+
     }
 
-    //\EF\E5\F7\E0\F2\FC \F1\EE\E4\E5\F0\E6\E8\EC\EE\E3\EE \EA\E0\F0\EC\E0\ED\EE\E2
+    //inventory body
     for ( i= 5; i< inv->Size(); i++ )
     {
-        if( p.y > ( cursor_pos.y - cursor_pos.z ) && p.y < cursor_pos.y  )
-        {
-            text_color=m_Vec3( 0.0f, 0.0f, 0.0f );
-            is_cursor= true;
-        }
-        num= inv->Number( i );
-        if( num != 0 || !is_one_empty_slot )
-            p= AddText( p.x, p.y, &text_color, 1, "           %c) %15-s %2d    %4.1f\n", i + 'a',
-                        inv->InvFullName(str, i).toLocal8Bit().constData(),
-                        num, inv->GetInvWeight(i) );
 
-        if( num == 0 ) is_one_empty_slot= true;
-        if( is_cursor )
-        {
-            text_color=m_Vec3( 0.8, 0.8, 0.8  );
-            is_cursor= false;
-        }
+        if( i == active_inventory_slot && active_inventory == 0  )
+            text_color= m_Vec3( 1.0f, 0.1f, 0.1f );
+        else if( i == selected_inventoy_slot )
+            text_color= m_Vec3( 1.0f, 1.0f, 0.1f );
+        else
+            text_color= primary_text_color;
+
+        num= inv->Number( i );
+
+        p= AddText( p.x, p.y, &text_color, 1, format_str,
+                    inv->InvFullName(str, i).toLocal8Bit().constData(),
+                    num, 7, 1, inv->GetInvWeight(i) );
+
     }
-    p= AddText( p.x, p.y, &text_color, 1, "Total: %28-s%5.1f", "",  inv->InvWeightAll() );
+    //weight string
+    p= AddText( p.x, p.y, &text_color, 1, bottom_format_str, "",  7, 1, inv->Weight() );
 
 
 show_inventory_block:
-    //\EF\E5\F7\E0\F2\FC \E8\ED\E2\E5\ED\F2\EE\F0\E8\FF \E1\EB\EE\EA\E0
+
     inv= player->UsingBlock()->HasInventory();
     if( inv == NULL )
         return;
 
-    p= AddText( p.x + 0.02, 0.5, &text_color, 1,"%s\n", inv->FullName(str).toLocal8Bit().constData() );
-    p= AddText( p.x, p.y, &text_color, 1, "%22-s num weight\n", "" );
 
-    is_one_empty_slot= false;
+    selected_inventoy_slot= int( ( (0.5f + 3.0f * float(DEFAULT_FONT_HEIGHT ) * 2.0f/
+                                    float( viewport_y ) - cursor_pos.y ) * float(viewport_y) * 0.5f - 0.5f ) /
+                                 float( DEFAULT_FONT_HEIGHT ) ) - 1;
+    if( cursor_pos.x < 2.0f * float( DEFAULT_FONT_WIDTH ) * float( 2 + PLAYER_INVENTORY_WIDTH ) / float(viewport_x) - 1.0f ||
+            cursor_pos.x > 2.0f * float( DEFAULT_FONT_WIDTH ) * float( 2 + PLAYER_INVENTORY_WIDTH + INVENTORY_WIDTH ) / float(viewport_x) - 1.0f )
+        selected_inventoy_slot= -1;
+
+    //inventory name
+    p= AddText( ( 2 + PLAYER_INVENTORY_WIDTH ) * 2.0f * float( DEFAULT_FONT_WIDTH )/ float(viewport_x) - 1.0f,
+                0.5f + 3.0f * float(DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y ),
+                &primary_text_color, 1,"%s\n", inv->FullName(str).toLocal8Bit().constData() );
+    //inventory head
+    p= AddText( p.x, p.y, &primary_text_color, 1, right_top_format_str, "" );
+    //inventory body
     for ( i= 0; i< inv->Size(); i++ )
     {
-        if( p.y > ( cursor_pos.y - cursor_pos.z ) && p.y < cursor_pos.y )
-        {
-            text_color=m_Vec3( 0.0f, 0.0f, 0.0f );
-            is_cursor= true;
-        }
+
+        if( i == active_inventory_slot && active_inventory == 1  )
+            text_color= m_Vec3( 1.0f, 0.1f, 0.1f );
+        else if( i == selected_inventoy_slot )
+            text_color= m_Vec3( 1.0f, 1.0f, 0.1f );
+        else
+            text_color= primary_text_color;
+
         num= inv->Number(i);
-        if( num != 0 || !is_one_empty_slot )
-            p= AddText( p.x, p.y, &text_color, 1, "%c) %19-s %2d    %4.1f\n", i + 'a',
-                        inv->InvFullName(str, i).toLocal8Bit().constData(), num, inv->GetInvWeight(i) );
-        if( num == 0 ) is_one_empty_slot= true;
-        if( is_cursor )
-        {
-            text_color=m_Vec3( 0.8, 0.8, 0.8  );
-            is_cursor= false;
-        }
+
+        p= AddText( p.x, p.y, &text_color, 1, right_format_str,
+                    inv->InvFullName(str, i).toLocal8Bit().constData(), num, 7, 1, inv->GetInvWeight(i) );
+
     }
-    p= AddText( p.x, p.y, &text_color, 1, "Total: %21-s%5.1f\n", "",  inv->InvWeightAll() );
+    //weight string
+    p= AddText( p.x, p.y, &primary_text_color, 1, right_bottom_format_str, "", 7, 1, inv->Weight() );
 }
-void r_Renderer::Draw()
+
+void r_Renderer::UpdateGPUData()
 {
-
-    if( frame_count == 0 )
-        BuildWorld();
-
-    gpu_data_mutex.lock();
-
     if( frame_count == 0 )
     {
         SetupVertexBuffers();
@@ -679,15 +698,23 @@ void r_Renderer::Draw()
 #else
 #endif//FREG_GL_MULTI_THREAD
 
+}
+void r_Renderer::Draw()
+{
 
+    if( frame_count == 0 )
+        BuildWorld();
 
+    gpu_data_mutex.lock();
+
+    UpdateGPUData();
 
     frame_cam_position= cam_position;
 
 #ifdef OGL21
     glClear( GL_DEPTH_BUFFER_BIT );
     if( underwater )
-    	glViewport( 0, 0, viewport_x/2, viewport_y/2 );
+        glViewport( 0, 0, viewport_x/2, viewport_y/2 );
 #endif
 
 #ifndef OGL21
@@ -757,18 +784,27 @@ void r_Renderer::Draw()
     glEnable( GL_BLEND );
     DrawSun();
 
-    glDisable( GL_CULL_FACE );
-    DrawWater();
-    glEnable( GL_CULL_FACE );
-
-    DrawRain();
+    if( underwater )
+    {
+        DrawRain();
+        glDisable( GL_CULL_FACE );
+        DrawWater();
+        glEnable( GL_CULL_FACE );
+    }
+    else
+    {
+        glDisable( GL_CULL_FACE );
+        DrawWater();
+        glEnable( GL_CULL_FACE );
+        DrawRain();
+    }
 
     glDisable( GL_BLEND );
 
     glDisable( GL_DEPTH_TEST );
 
 #ifdef OGL21
-MakePostprocessingGL21();
+    MakePostprocessingGL21();
 #else
     MakePostProcessing();
 #endif
@@ -790,10 +826,10 @@ void r_Renderer::CalculateLightPower()
     float time= (float(world->Time() % SECONDS_IN_DAY) + float( world->MiniTime() ) * 0.1f )/ float(SECONDS_IN_HOUR);
 
     float k, k1;
-    fire_ambient_light= 0.2f;
+    fire_ambient_light= AMBIENT_FIRE_LIGHT;
     if( time < 6.0f )//night
     {
-        sky_ambient_light= 0.001f;
+        sky_ambient_light= AMBIENT_SKY_NIGHT_LIGHT;
         direct_sun_light= 0.0f;
         sky_light= 0.0f;
     }
@@ -802,14 +838,14 @@ void r_Renderer::CalculateLightPower()
         k= ( time - 6.0f );
         k= k * k;
         k1= 1.0f- k;
-        direct_sun_light= 20.0f * k;
-        sky_ambient_light= 0.001f * k1 + 0.5f * k;
+        direct_sun_light= DIRECT_SUN_LIGHT * k;
+        sky_ambient_light= AMBIENT_SKY_NIGHT_LIGHT * k1 + AMBIENT_SKY_DAY_LIGHT * k;
         sky_light= k;
     }
     else if( time < 23.0f )
     {
-        sky_ambient_light= 0.5f;
-        direct_sun_light= 20.0f;
+        sky_ambient_light= AMBIENT_SKY_DAY_LIGHT;
+        direct_sun_light= DIRECT_SUN_LIGHT;
         sky_light= 1.0f;
     }
     else
@@ -822,8 +858,8 @@ void r_Renderer::CalculateLightPower()
         k1= k1 * k1;
         k= 1.0f - k;
 
-        direct_sun_light= 20.0f * k1;
-        sky_ambient_light= 0.001f * k + 0.5f * k1;
+        direct_sun_light= DIRECT_SUN_LIGHT * k1;
+        sky_ambient_light= AMBIENT_SKY_NIGHT_LIGHT * k + AMBIENT_SKY_DAY_LIGHT * k1;
         sky_light= k1;
     }
 }
@@ -892,25 +928,25 @@ void r_Renderer::MakeDeferredShading()
 
 void r_Renderer::MakePostprocessingGL21()
 {
-	if( underwater )
-	{
+    if( underwater )
+    {
 
-	    underwater_buffer_gl21.BindTexture(0);
-	    glCopyTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, 0, 0, viewport_x/2, viewport_y/2, 0 );
+        underwater_buffer_gl21.BindTexture(0);
+        glCopyTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, 0, 0, viewport_x/2, viewport_y/2, 0 );
 
-	    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
         glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
 
-		glViewport( 0, 0, viewport_x, viewport_y );
+        glViewport( 0, 0, viewport_x, viewport_y );
 
-	    underwater_postprocess_shader.Bind();
-	    underwater_postprocess_shader.Uniform( "scene_buffer", 0 );
-	    underwater_postprocess_shader.Uniform( "time", float(clock())/float( CLOCKS_PER_SEC ) );
+        underwater_postprocess_shader.Bind();
+        underwater_postprocess_shader.Uniform( "scene_buffer", 0 );
+        underwater_postprocess_shader.Uniform( "time", float(clock())/float( CLOCKS_PER_SEC ) );
 
-	    m_Vec3 inv_screen_size( 1.0f/float(viewport_x), 1.0f/float(viewport_y), 0.0f );
-	    underwater_postprocess_shader.Uniform( "inv_screen_size", inv_screen_size );
-		fullscreen_quad.Show();
-	}
+        m_Vec3 inv_screen_size( 1.0f/float(viewport_x), 1.0f/float(viewport_y), 0.0f );
+        underwater_postprocess_shader.Uniform( "inv_screen_size", inv_screen_size );
+        fullscreen_quad.Show();
+    }
 }
 void r_Renderer::MakePostProcessing()
 {
@@ -982,7 +1018,7 @@ void r_Renderer::MakePostProcessing()
         scene_hdr_underwater_buffer.BindDepthTexture(2);
 
         underwater_postprocess_shader.Bind();
-         underwater_postprocess_shader.Uniform( "time", float(clock())/float(CLOCKS_PER_SEC) );
+        underwater_postprocess_shader.Uniform( "time", float(clock())/float(CLOCKS_PER_SEC) );
         underwater_postprocess_shader.Uniform( "scene_buffer", 0 );
         underwater_postprocess_shader.Uniform( "bloom_buffer", 1 );
         underwater_postprocess_shader.Uniform( "depth_buffer", 2 );
@@ -1245,7 +1281,7 @@ void r_Renderer::UpdateData()
     //unsigned int* new_index_buffer;
     r_WorldVertex* new_vertex_buffer, *v;
     unsigned int i_offset;
-    unsigned char tmp[ sizeof( r_PolygonBuffer ) ];
+   // unsigned char tmp[ sizeof( r_PolygonBuffer ) ];
     bool full_shred_list_update= false;
     if( full_update )
         goto out_point;
@@ -1808,7 +1844,7 @@ void r_Renderer::Initialize()
 
 
 #ifdef OGL21
-	if( water_shader.Load( "shaders/glsl_120/water_frag.glsl",
+    if( water_shader.Load( "shaders/glsl_120/water_frag.glsl",
                            "shaders/glsl_120/water_vert.glsl", NULL ) )
         printf( "error, water shader not found\n" );
 #else
@@ -1932,7 +1968,7 @@ void r_Renderer::Initialize()
 
 
 #ifdef OGL21
-if( underwater_postprocess_shader.Load( "shaders/glsl_120/underwater_postprocess_frag.glsl", "shaders/glsl_120/fullscreen_quad_vert.glsl", NULL ) )
+    if( underwater_postprocess_shader.Load( "shaders/glsl_120/underwater_postprocess_frag.glsl", "shaders/glsl_120/fullscreen_quad_vert.glsl", NULL ) )
         printf( "error, underwater postprocess shader not found\n" );
 
     underwater_postprocess_shader.SetAttribLocation( "coord", 0 );
@@ -2085,7 +2121,7 @@ if( underwater_postprocess_shader.Load( "shaders/glsl_120/underwater_postprocess
 
 
 #ifdef OGL21
-underwater_buffer_gl21.SetFiltration( GL_NEAREST, GL_LINEAR );
+    underwater_buffer_gl21.SetFiltration( GL_NEAREST, GL_LINEAR );
     underwater_buffer_gl21.Create();
     underwater_buffer_gl21.TextureData( viewport_x/2, viewport_y/2, GL_UNSIGNED_INT, GL_RGB, 24, NULL );
     underwater_buffer_gl21.MoveOnGPU();
@@ -2198,6 +2234,7 @@ r_Renderer::r_Renderer( World* w,Player* p, int width, int height ):
     max_fps(0), min_fps(0), max_fps_to_draw(0), min_fps_to_draw(0),
     shreds_update_per_second(0), shreds_update_per_second_to_draw(0),
     startup_time( 0, 0 ),
+    active_inventory_slot(-1),
     gpu_data_mutex(QMutex::NonRecursive),
     host_data_mutex( QMutex::NonRecursive ),
     text_data_mutex( QMutex::NonRecursive ),
@@ -2354,26 +2391,26 @@ void r_Renderer::BuildShredList()
                     shreds_to_draw_list[ shreds_to_draw_count ] = shred;
                     shreds_to_draw_indeces[ shreds_to_draw_count ] =0;
 
-                    #ifdef OGL21
-                     shreds_to_draw_quad_count[ shreds_to_draw_count ]=  ( shred->quad_count - shred->water_quad_count ) * 4;
+#ifdef OGL21
+                    shreds_to_draw_quad_count[ shreds_to_draw_count ]=  ( shred->quad_count - shred->water_quad_count ) * 4;
                     shreds_to_draw_base_vertices[ shreds_to_draw_count ] = shred->vertex_buffer - vertex_buffer;
-                    #else
+#else
                     shreds_to_draw_quad_count[ shreds_to_draw_count ]=  ( shred->quad_count - shred->water_quad_count ) * 6;
                     shreds_to_draw_base_vertices[ shreds_to_draw_count ] = shred->vertex_buffer - vertex_buffer;
-                    #endif
+#endif
 
                     shreds_to_draw_count++;
                     //}
 
                     if( shred->water_quad_count )
                     {
-                    	#ifdef OGL21
-                    	water_quads_base_vertices[ water_shreds_to_draw_count ]= shred->water_vertices - vertex_buffer;
+#ifdef OGL21
+                        water_quads_base_vertices[ water_shreds_to_draw_count ]= shred->water_vertices - vertex_buffer;
                         water_quads_to_draw_count[ water_shreds_to_draw_count ]= shred->water_quad_count * 4;
-                    	#else
+#else
                         water_quads_base_vertices[ water_shreds_to_draw_count ]= shred->water_vertices - vertex_buffer;
                         water_quads_to_draw_count[ water_shreds_to_draw_count ]= shred->water_quad_count * 6;
-                        #endif
+#endif
                         water_shreds_to_draw_count++;
                     }
                 }
@@ -2610,7 +2647,7 @@ void r_Renderer::LoadConfig()
 
     deferred_shading= config.value( "deferred_shading", false ).toBool();
 
-	texture_manager.SetTexturesSize( config.value( "texture_size", 128 ).toInt() );
+    texture_manager.SetTexturesSize( config.value( "texture_size", 128 ).toInt() );
 
 
 #ifdef OGL21//hack

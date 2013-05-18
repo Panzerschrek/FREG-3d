@@ -57,13 +57,13 @@ class Player : public QObject {
 	Active * player;
 	int usingType;
 	int usingSelfType;
-	Shred * shred;
 
 	bool creativeMode;
 
 	volatile bool cleaned;
 
 	void UpdateXYZ();
+	Shred * GetShred() const;
 
 	public slots:
 
@@ -154,27 +154,35 @@ class Player : public QObject {
 	void SetCreativeMode(bool turn);
 
 	void Turn(int dir);
-	int Move(int dir);
+	void Move(int dir);
 	void Jump();
 
+	///Tries to switch usingSelfType from NO to OPEN.
 	void Backpack();
 	void Inscribe(short x, short y, short z) const;
 	void Examine(short x, short y, short z) const;
 	void Damage(short x, short y, short z) const;
 	void Use(short x, short y, short z);
 
+	///Tries to use block number num in inventory.
 	void Use     (ushort num);
+	///Tries to throw (drop out) block number num from inventory.
 	void Throw   (ushort num);
+	///Tries to get block number num from outer inventory.
 	void Obtain  (ushort num);
-	void Wield   (ushort num);
+	///Returns true if wielding successful.
+	bool Wield   (ushort num);
 	void Inscribe(ushort num);
 	void Eat     (ushort num);
 	void Craft   (ushort num);
 	void TakeOff (ushort num);
 	void Build(short x, short y, short z, ushort num);
+	///Can also wield appropriate things. True if successful.
+	bool MoveInsideInventory(ushort num_from, ushort num_to);
 	void ProcessCommand(QString & command);
 
 	private:
+	bool InnerMove(ushort num_from, ushort num_to);
 	Block * ValidBlock(ushort num) const;
 	int DamageKind() const;
 	ushort DamageLevel() const;
@@ -194,6 +202,13 @@ class Player : public QObject {
 
 	///Destructor calls Player::CleanAll().
 	~Player();
+
+	private:
+	short world_x, world_y, world_z;
+	public:
+	short WorldX(){ return world_x; }
+	short WorldY(){ return world_y; }
+	short WorldZ(){ return world_z; }
 }; //Player
 
 #endif

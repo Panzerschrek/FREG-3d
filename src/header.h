@@ -22,11 +22,9 @@
 #include <QtGlobal>
 
 #ifdef Q_OS_WIN32
+
 	#include <windows.h>
-	inline void usleep(int n ) {Sleep(n/1000); }
-	//#define usleep(n) { Sleep(n/1000); }
-#else
-	#include <unistd.h>
+	inline void usleep(int n){ Sleep(n/1000); };
 #endif
 
 const ushort SHRED_WIDTH=16;
@@ -65,21 +63,21 @@ enum { NOT_MOVABLE, MOVABLE, ENVIRONMENT };
 enum times_of_day { MORNING, NOON, EVENING, NIGHT };
 
 enum damage_kinds {
-	MINE,
-	DIG,
-	CUT,
-	THRUST,
-	CRUSH,
-	HEAT,
-	FREEZE,
-	MELT,
-	ELECTRO,
-	HUNGER,
-	BREATH,
-	EATEN,
-	TIME,
-	NO_HARM,
-	CREATIVE
+	MINE,    ///< 0
+	DIG,     ///< 1
+	CUT,     ///< 2
+	THRUST,  ///< 3
+	CRUSH,   ///< 4
+	HEAT,    ///< 5
+	FREEZE,  ///< 6
+	MELT,    ///< 7
+	ELECTRO, ///< 8
+	HUNGER,  ///< 9
+	BREATH,  ///< 10
+	EATEN,   ///< 11
+	TIME,    ///< 12
+	NO_HARM, ///< 13
+	DAMAGE_FALL ///< 14
 }; //enum damage_kinds
 
 enum kinds {//kind of atom
@@ -139,5 +137,6 @@ enum transparency {
 	NONSTANDARD=6,
 	UNDEF
 }; //enum transparency
+
 
 #endif

@@ -101,19 +101,9 @@ class Screen : public VirtScreen
 {
     Q_OBJECT
 
-    //World * const w; //connected world
-    //Player * const player;
-    /*WINDOW * leftWin,
-           * rightWin,
-           * notifyWin,
-           * soundWin,
-           * hudWin; //head-up display
-    IThread * input;*/
     bool updated;
-
     bool cleaned;
 
-    // QTimer * timer;
 
 private slots:
     void Print();
@@ -130,7 +120,6 @@ public slots:
     void Move(const int dir)
     {
         renderer->MoveMap(dir);
-        printf( "moved. dir= %d\n",dir );
     }
     void UpdateAround() {}
     void UpdateAround(
@@ -175,7 +164,7 @@ private://Panzerschrek
     FREGGLWidget* gl_widget;
     QWidget* window;
     QCursor cursor;
-    //static WINUSERAPI LRESULT WINAPI WindowProc( HWND,UINT,WPARAM,LPARAM );
+
     bool keys[ 512 ];//для хранения состояния клавиш
     bool use_mouse, is_focus;
 
@@ -189,8 +178,6 @@ private:
     short build_x, build_y, build_z;
     bool free_look;
     float cam_lag;
-    //r_UniversalThread input_thread;
-    //inline static void sInputTick();
 
 
     static Screen* current_screen;
@@ -202,6 +189,14 @@ private:
     static void sSaveScreenshot();
 public:
     void SaveScreenshot();
+
+    private:
+
+    int movable_inv_slot_number;
+    bool inventory_drag;
+    bool movable_in_player_inventory;
+    int active_hand;
+
 };
 
 /*

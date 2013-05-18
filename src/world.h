@@ -21,8 +21,10 @@
 #include <cmath>
 #include <QReadWriteLock>
 #include <QThread>
+#include <QByteArray>
 #include "header.h"
 
+class QTextStream;
 class Block;
 class Dwarf;
 class Inventory;
@@ -64,6 +66,8 @@ class World : public QThread {
 	bool ifStar;
 
 	long mapSize;
+	QByteArray worldMap;
+	QTextStream * worldMapStream;
 
 	long newLati, newLongi;
 	ushort newNumShreds, newNumActiveShreds;
@@ -78,6 +82,7 @@ class World : public QThread {
 	ushort deferredActionZFrom;
 	quint8 deferredActionDir;
 	Block * deferredActionWhat;
+	Block * deferredActionWho;
 	int deferredActionData1;
 	int deferredActionData2;
 	int deferredActionType;
@@ -104,7 +109,7 @@ class World : public QThread {
 	void PutBlock(Block * block, ushort x, ushort y, ushort z);
 	///Puts normal block to coordinates.
 	void PutNormalBlock(subs sub, ushort x, ushort y, ushort z);
-	static Block * Normal(int sub);
+	static Block * Normal(int sub, int dir=UP);
 	static void DeleteBlock(Block * block);
 
 	//lighting section
@@ -150,6 +155,7 @@ class World : public QThread {
 
 	private:
 	long MapSize() const;
+	QTextStream * MapStream();
 	ushort SunMoonX() const;
 	quint8 MakeDir(
 			ushort x_cent, ushort y_cent,
@@ -161,11 +167,18 @@ class World : public QThread {
 	//visibility section
 	public:
 	bool DirectlyVisible(
-			float, float, float,
-			ushort, ushort, ushort) const;
+			float x_from, float y_from, float z_from,
+			ushort x_to, ushort y_to, ushort z_to) const;
 	bool Visible(
 			ushort x_from, ushort y_from, ushort z_from,
 			ushort x_to,   ushort y_to,   ushort z_to) const;
+	private:
+	bool PositiveVisible(
+			float  x_from, float y_from, float z_from,
+			ushort x_to, ushort y_to, ushort z_to) const;
+	bool NegativeVisible(
+			float x_from, float y_from, float z_from,
+			short x_to,   short y_to,   short z_to) const;
 
 	//movement section
 	public:
@@ -198,6 +211,7 @@ class World : public QThread {
 			ushort y_from=0,
 			ushort z_from=0,
 			Block * what=0,
+			Block * who=0,
 			int data1=0,
 			int data2=0);
 
@@ -245,7 +259,7 @@ class World : public QThread {
 	int Kind(ushort x, ushort y, ushort z) const;
 	int Sub (ushort x, ushort y, ushort z) const;
 	int Movable(ushort x, ushort y, ushort z) const;
-	float Weight(ushort x, ushort y, ushort z) const;
+	ushort Weight(ushort x, ushort y, ushort z) const;
 	uchar LightRadius(ushort x, ushort y, ushort z) const;
 	Inventory * HasInventory(ushort x, ushort y, ushort z) const;
 

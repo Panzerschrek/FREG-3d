@@ -356,7 +356,6 @@ void r_ShredInfo::GetQuadCount()
     //if( max_geometry_height != R_SHRED_HEIGHT - 3 )
     //	max_geometry_height++;
 
-	water_quad_count= 0;
     quad_count= result;
     model_count_to_draw= model_count;
    // model_list.Clear();
@@ -584,6 +583,7 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
     /*ѕоскольку количество квадов с водой становитс€ известно только на этапе построени€ меша,
     размещать их приходитс€ от конца буффера с данными вершин, и заполн€ть в обратном направлении*/
     water_vertices= shred_vertices + quad_count * 4 - 4;
+    water_quad_count= 0;
     r_WorldVertex* tmp_vert_p;
     /*в конце алгоритма указатель как раз будет указывать на начало буффера с квадами воды*/
 
