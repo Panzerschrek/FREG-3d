@@ -19,8 +19,14 @@ void main( void )
     albedo_material_id.a= ( f_tex_coord.z + 0.0015  ) * ( 1.0 / 255.0 );
     albedo_material_id.a+= step( 0.0, f_normal.z ) * ( 128.0 / 255.0 );
 
+
+   #ifdef NORMAL_INTERPOLATION
+   vec3 normalized_normal= normalize( f_normal ) * 0.98;
+   normal_light.xy= normalized_normal.xy * 0.5 + vec2( 0.5, 0.5 );
+   #else
     // linear normal convertion
     normal_light.xy= f_normal.xy * 0.5 + vec2( 0.5, 0.5 );
+   #endif
 
     //stereographic normal convertion
     //normal_light.xy= f_normal.xy/( 1.0 - f_normal.z );

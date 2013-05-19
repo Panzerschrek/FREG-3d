@@ -21,8 +21,13 @@ out vec4 color;
 
 float SunLight(void)
 {
+	#ifdef NORMAL_INTERPOLATION
+	vec3 normal= normalize( f_normal );
+	#else
+	vec3 normal = f_normal;
+	#endif
 	vec3 p= f_position;
-	float sun_light_cos= max( dot( normalize( f_normal ), sun_vector )- 0.05, 0.0 );
+	float sun_light_cos= max( dot( normal, sun_vector )- 0.05, 0.0 );
 	//p.z-= 0.001 * inversesqrt( sun_light_cos ); //epsilon
 
 	float sun_l= texture( shadow_map, p );
@@ -34,7 +39,7 @@ float SunLight(void)
 	float diffuse, specular;
 	diffuse= sun_light_cos;
 	vec3 tocam_pos= normalize( f_world_position - cam_pos );
-	tocam_pos= reflect( tocam_pos, f_normal );
+	tocam_pos= reflect( tocam_pos, normal );
 	specular= max( dot( sun_vector, tocam_pos ), 0.0f );
 	specular= pow( specular, mp.z * 255.0f );
 	

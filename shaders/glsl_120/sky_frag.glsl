@@ -13,7 +13,7 @@ void main( void )
 
    	vec3 tc= view_vector;
 	tc= normalize( tc );
-	vec3 c= textureCube( cu, tc ).xyz * 0.5;
+	vec3 c= textureCube( cu, tc ).xyz * 0.5 * ( 1.0 - sun_vec_len );
 
 
 	float sky_fact= ( 2.0f - tc.y ) * 0.5;

@@ -14,10 +14,18 @@
 	*You should have received a copy of the GNU General Public License
 	*along with FREG. If not, see <http://www.gnu.org/licenses/>.
 	*/
-#define DIRECT_SUN_LIGHT 20.0f
+
+#ifdef OGL21
+#define AMBIENT_SKY_DAY_LIGHT 0.08f
+#define AMBIENT_SKY_NIGHT_LIGHT 0.01f
+#define AMBIENT_FIRE_LIGHT 0.04f
+#else//if OGL3.3
 #define AMBIENT_SKY_DAY_LIGHT 0.5f
 #define AMBIENT_SKY_NIGHT_LIGHT 0.001f
 #define AMBIENT_FIRE_LIGHT 0.2f
+#endif//OGL21
+
+#define DIRECT_SUN_LIGHT 20.0f
 
 #define DEFAULT_FONT_WIDTH 10
 #define DEFAULT_FONT_HEIGHT 14

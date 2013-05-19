@@ -51,7 +51,7 @@ void main()
 
     //linear normal convertion
     normal.xy= nl_texdata.xy * 2.0 - vec2( 1.0, 1.0 );
-    normal.z= sqrt( 1.001 - normal.x * normal.x - normal.y * normal.y )
+    normal.z= sqrt( 1.005 - normal.x * normal.x - normal.y * normal.y )
               *( step( ( 128.0/255.0), ami_texdata.a ) * 2.0 - 1.0 );
     normal= normal_mat * normal;
 

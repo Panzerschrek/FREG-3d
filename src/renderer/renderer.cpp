@@ -294,7 +294,8 @@ void r_Renderer::DrawSky()
 
 void r_Renderer::DrawSun()
 {
-    if( world->PartOfDay() == NIGHT )
+    if( ( world->Time() % SECONDS_IN_DAY ) < ( END_OF_NIGHT + 1 * SECONDS_IN_HOUR ) ||
+            ( world->Time() % SECONDS_IN_DAY ) > ( SECONDS_IN_DAY - 1 * SECONDS_IN_HOUR ) )
         return;
     sun_shader.Bind();
     sun_texture.BindTexture(0);
@@ -382,10 +383,10 @@ void r_Renderer::DrawHUD()
     m_Vec3 p;
 
     //technical information
-	p.y=  1.0f - float( 2 * DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y );
+    p.y=  1.0f - float( 2 * DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y );
     m_Vec3 text_color( 1.0f, 1.0f, 0.3f );
     p= AddText( float( DEFAULT_FONT_WIDTH ) * 2.0f / float( viewport_x ) - 1.0f,
-										 p.y, &text_color, 1.0, "fps: %d\n", fps );
+                p.y, &text_color, 1.0, "fps: %d\n", fps );
     p= AddText( p.x, p.y, &text_color, 1.0, "max fps: %2.1f\n", max_fps_to_draw );
     p= AddText( p.x, p.y, &text_color, 1.0, "min fps: %2.1f\n", min_fps_to_draw );
     p= AddText( p.x, p.y, &text_color, 1.0, "time: %dh %dm\n",
@@ -400,8 +401,8 @@ void r_Renderer::DrawHUD()
     text_color.x= text_color.y= text_color.z= 0.8;
     char hp_string[32];
     sprintf( hp_string, "HP: %3d\%[", player->HP() );
-	p.x= 1.0f - float( 22 * DEFAULT_FONT_WIDTH ) * 2.0f / float( viewport_x );
-	p.y=  float( 6 * DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y ) - 1.0f;
+    p.x= 1.0f - float( 22 * DEFAULT_FONT_WIDTH ) * 2.0f / float( viewport_x );
+    p.y=  float( 6 * DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y ) - 1.0f;
     p= AddText( p.x, p.y, &text_color, 1.0, hp_string );
     text_color.x= 0.8, text_color.y= 0.1, text_color.z= 0.1;
     for( int i=0; i< 10; i++ )
@@ -422,15 +423,15 @@ void r_Renderer::DrawHUD()
     p= AddText( p.x, p.y, &text_color, 1.0, "]\n" );
 
 
-	//satiation
+    //satiation
     text_color.x= 0.1, text_color.y= 0.8, text_color.z= 0.1;
-	p.x= 1.0f - float( 22 * DEFAULT_FONT_WIDTH ) * 2.0f / float( viewport_x );
+    p.x= 1.0f - float( 22 * DEFAULT_FONT_WIDTH ) * 2.0f / float( viewport_x );
     AddText( p.x, p.y, &text_color, 1, "satiation: %d\n", player->Satiation()  );
 
     //notify log
     text_color.x= text_color.y= text_color.z= 0.8;
     p.x= float( DEFAULT_FONT_WIDTH ) * 2.0f / float( viewport_x ) - 1.0f;
-	p.y= float( R_NUMBER_OF_NOTIFY_LINES * DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y ) - 1.0f;
+    p.y= float( R_NUMBER_OF_NOTIFY_LINES * DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y ) - 1.0f;
     for( int i= R_NUMBER_OF_NOTIFY_LINES - 1, n; i>= 0; i-- )
     {
         n= ( notify_log_last_line - 1 - i ) % R_NUMBER_OF_NOTIFY_LINES;
@@ -835,12 +836,11 @@ void r_Renderer::CalculateLightPower()
     }
     else if( time < 7.0f )
     {
-        k= ( time - 6.0f );
-        k= k * k;
-        k1= 1.0f- k;
-        direct_sun_light= DIRECT_SUN_LIGHT * k;
-        sky_ambient_light= AMBIENT_SKY_NIGHT_LIGHT * k1 + AMBIENT_SKY_DAY_LIGHT * k;
-        sky_light= k;
+        k= 7.0f - time;
+        k1= 1.0f - k;
+        direct_sun_light= 0.0f;
+        sky_ambient_light= AMBIENT_SKY_DAY_LIGHT * k1 + k * AMBIENT_SKY_NIGHT_LIGHT;
+        sky_light= k1;
     }
     else if( time < 23.0f )
     {
@@ -850,18 +850,15 @@ void r_Renderer::CalculateLightPower()
     }
     else
     {
-        //k= ( time - 23.0f );
-        //k= k * k;
-        //k1= 1.0f- k;
-        k= ( time - 23.0f );
+        k= time - 23.0f;
         k1= 1.0f - k;
-        k1= k1 * k1;
-        k= 1.0f - k;
-
-        direct_sun_light= DIRECT_SUN_LIGHT * k1;
-        sky_ambient_light= AMBIENT_SKY_NIGHT_LIGHT * k + AMBIENT_SKY_DAY_LIGHT * k1;
+        direct_sun_light= 0;
+        sky_ambient_light= AMBIENT_SKY_DAY_LIGHT * k1 + k * AMBIENT_SKY_NIGHT_LIGHT;
         sky_light= k1;
+
     }
+
+
 }
 
 void r_Renderer::MakeDeferredShading()
@@ -964,9 +961,9 @@ void r_Renderer::MakePostProcessing()
     float l[2];
     brightness_info_buffer.BindColorTexture( 0, 0 );
     glGenerateMipmap(GL_TEXTURE_2D);
-    glGetTexImage( GL_TEXTURE_2D, 7, GL_RED, GL_FLOAT, &l);
+    glGetTexImage( GL_TEXTURE_2D, 7, GL_RED, GL_FLOAT, &l[0] );
 
-    l[1]= l[0];
+    //l[1]= l[0];
     l[0]/= 3.0f;
     l[0]= 0.69f / l[0];
 
@@ -1052,7 +1049,7 @@ void r_Renderer::RenderShadows()
     m_Mat4 translate, result_mat, projection, rotateX,rotateY, rotateZ,rotateZ2, viewport, yzchange, sun_vec_rot_X, sun_vec_rot_Z;
 
     //\F0\E0\F1\F7\B8\F2 \F3\E3\EB\E0 \F1\EE\EB\ED\F6\E0 \EE\F2\ED\EE\F1\E8\F2\E5\EB\FC\E3\EE \E2\F0\E5\EC\E5\ED\E8 \E4\ED\FF
-    float angle= m_Math::FM_PI * float( ( world->Time() % SECONDS_IN_DAY / 60 ) * 60 - END_OF_NIGHT )/float ( SECONDS_IN_DAY - END_OF_NIGHT );
+    float angle= m_Math::FM_PI * float( ( world->Time() % SECONDS_IN_DAY / 60 ) * 60 - END_OF_NIGHT - 1 * SECONDS_IN_HOUR )/float ( SECONDS_IN_DAY - END_OF_NIGHT - 2 * SECONDS_IN_HOUR );
     if( angle < MIN_SUN_HEIGHT )  angle= 0.17;
     else if ( angle > ( m_Math::FM_PI - MIN_SUN_HEIGHT ) ) angle= 2.96;
 
@@ -1069,8 +1066,9 @@ void r_Renderer::RenderShadows()
     sun_vec_rot_X.Identity(), sun_vec_rot_X.RotateX( sun_max_horison_angle );
     sun_vec_rot_Z= sun_vec_rot_Z * sun_vec_rot_X;
     sun_vector= sun_vector * sun_vec_rot_Z;
-    if( world->PartOfDay() == NIGHT )
-        sun_vector= m_Vec3( 0.0, 0.0, 0.0 );
+    /* if( ( world->Time() % SECONDS_IN_DAY ) < ( END_OF_NIGHT + 1 * SECONDS_IN_HOUR ) ||
+    	( world->Time() % SECONDS_IN_DAY ) > ( SECONDS_IN_DAY - 1 * SECONDS_IN_HOUR ) )
+         sun_vector= m_Vec3( 0.0, 0.0, 0.0 );*/
 
 #ifdef OGL21
     return;
@@ -1281,7 +1279,7 @@ void r_Renderer::UpdateData()
     //unsigned int* new_index_buffer;
     r_WorldVertex* new_vertex_buffer, *v;
     unsigned int i_offset;
-   // unsigned char tmp[ sizeof( r_PolygonBuffer ) ];
+    // unsigned char tmp[ sizeof( r_PolygonBuffer ) ];
     bool full_shred_list_update= false;
     if( full_update )
         goto out_point;
@@ -2060,6 +2058,7 @@ void r_Renderer::Initialize()
     if( models_shader.Load( "shaders/glsl_120/world_frag.glsl", "shaders/glsl_120/model_vert.glsl", NULL ) )
         printf( "error. Model shader not found.\n" );
 
+	models_shader.Define( "#define NORMAL_INTERPOLATION\n" );
     models_shader.SetAttribLocation( "coord", ATTRIB_POSITION );
     models_shader.SetAttribLocation( "tex_coord", ATTRIB_TEX_COORD );
     models_shader.SetAttribLocation( "normal", ATTRIB_NORMAL );
@@ -2070,12 +2069,16 @@ void r_Renderer::Initialize()
     models_shader.FindUniform( "pos" );
     models_shader.FindUniform( "light" );
 
+     models_shader.FindUniform( "sky_ambient_light" );
+     models_shader.FindUniform( "fire_ambient_light" );
+
 #else//if !OGL21
     if( deferred_shading )
     {
         if( models_shader.Load( "shaders/DS/world_frag.glsl", "shaders/DS/model_vert.glsl", NULL ) )
             printf( "error. Model shader not found.\n" );
 
+		models_shader.Define( "#define NORMAL_INTERPOLATION\n" );
         models_shader.SetAttribLocation( "coord", ATTRIB_POSITION );
         models_shader.SetAttribLocation( "tex_coord", ATTRIB_TEX_COORD );
         models_shader.SetAttribLocation( "normal", ATTRIB_NORMAL );
@@ -2093,6 +2096,7 @@ void r_Renderer::Initialize()
         if( models_shader.Load( "shaders/world_frag.glsl", "shaders/model_vert.glsl", NULL ) )
             printf( "error. Model shader not found.\n" );
 
+		models_shader.Define( "#define NORMAL_INTERPOLATION\n" );
         models_shader.SetAttribLocation( "coord", ATTRIB_POSITION );
         models_shader.SetAttribLocation( "tex_coord", ATTRIB_TEX_COORD );
         models_shader.SetAttribLocation( "normal", ATTRIB_NORMAL );

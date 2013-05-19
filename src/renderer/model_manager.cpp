@@ -430,7 +430,6 @@ void r_ModelManager::DrawModels( const r_GLSLProgram* shader )
     }
 
 
-
     #else
 
     glActiveTexture( GL_TEXTURE0 + 2 );

@@ -48,7 +48,7 @@ enum:
         PICK,
         PILE,
         CLOCK,
-        MODEL_COUNT= 20
+        MODEL_COUNT= 40
     };
 
     void ClearModelList();

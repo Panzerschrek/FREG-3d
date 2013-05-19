@@ -17,8 +17,8 @@ attribute float normal;
 attribute vec2 light;
 
 
-uniform float sun_k= 0.08;
-uniform float light_k= 0.04;
+uniform float sky_ambient_light= 0.08;
+uniform float fire_ambient_light= 0.04;
 
 
 float Noise()
@@ -30,8 +30,8 @@ float Noise()
 void main( void )
 {
    	int i_normal= int( normal + 0.00001 );
-	f_tex_coord= tex_coord.xy * 0.125;
-	f_light= max( sun_k * light.x + sun_k * light.y, 0.05 );
+	f_tex_coord= coord.xy * 0.125;
+	f_light= max( sky_ambient_light * light.x + fire_ambient_light * light.y, 0.05 );
 	f_light*= block_side_light_k[ i_normal ];
 
 	vec3 m_coord= coord;

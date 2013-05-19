@@ -1527,12 +1527,12 @@
 	Workbench::Workbench(const int sub) :
 			Block(sub),
 			Inventory(workbench_size)
-	{}
+	{transparent= NONSTANDARD;}
 
 	Workbench::Workbench(QDataStream & str, const int sub) :
 			Block(str, sub),
 			Inventory(str, workbench_size)
-	{}
+	{transparent= NONSTANDARD;}
 
 //Door::
 	Block * Door::DropAfterDamage() const {
