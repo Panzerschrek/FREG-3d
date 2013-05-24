@@ -25,7 +25,7 @@ class QFile;
 class World;
 
 const char DEFAULT_SHRED='.';
-const char OUT_BORDER_SHRED='~';
+const char OUT_BORDER_SHRED=':';
 
 class Shred {
 	Block * blocks[SHRED_WIDTH][SHRED_WIDTH][HEIGHT];
@@ -95,8 +95,9 @@ class Shred {
 
 	private:
 	QString FileName() const;
+	public:
 	char TypeOfShred(long longi, long lati) const;
-
+private:
 	void NormalUnderground(ushort depth=0, int sub=SOIL);
 	void CoverWith(int kind, int sub, ushort thickness);
 

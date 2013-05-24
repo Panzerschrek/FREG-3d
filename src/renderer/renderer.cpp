@@ -441,6 +441,61 @@ void r_Renderer::DrawHUD()
 
 }
 
+void r_Renderer::DrawMap()
+{
+    m_Vec3 p( 0.0f, 0.0f, 0.0f );
+    m_Vec3 color;
+    float symbol_y;
+    Shred* s;
+    char c;
+    unsigned char color_id;
+    unsigned short str[3]= {0,0,0};
+    int x, y;
+
+    static m_Vec3 map_colors[]=
+    {
+        MAP_SHRED_COLOR_DEFAULT,
+        MAP_SHRED_COLOR_WATER,
+        MAP_SHRED_COLOR_PLAIN,
+        MAP_SHRED_COLOR_FOREST,
+        MAP_SHRED_COLOR_HILL,
+        MAP_SHRED_COLOR_MOUNTAIN,
+        MAP_SHRED_COLOR_DESERT,
+        MAP_SHRED_COLOR_TEST,
+        MAP_SHRED_COLOR_PYRAMID,
+        MAP_PLAYER_COLOR
+    };
+
+    char player_arrow;
+    if( cam_angle.z >	m_Math::FM_PI4 && cam_angle.z <= 3.0f * m_Math::FM_PI4 )
+        player_arrow= '>';
+    else if( cam_angle.z > 3.0f * m_Math::FM_PI4 && cam_angle.z <= 5.0f * m_Math::FM_PI4 )
+        player_arrow= 'V';
+    else if( cam_angle.z > 5.0f * m_Math::FM_PI4 && cam_angle.z <= 7.0f * m_Math::FM_PI4 )
+        player_arrow= '<';
+    else if( cam_angle.z <= m_Math::FM_2PI || cam_angle.z <= m_Math::FM_PI4 )
+        player_arrow= '^';
+
+
+    p.y= float( ( 1 + visibly_world_size[1] ) * DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y ) - 1.0f;
+    for( y=0; y< visibly_world_size[1]; y++ )
+    {
+        p.x= - float( visibly_world_size[0] * DEFAULT_FONT_WIDTH ) * 2.0f / float( viewport_x );
+        for( x= 0; x< visibly_world_size[0]; x++ )
+        {
+            c= world_map_to_draw[ y * visibly_world_size[0] + x ];
+            color_id= world_map_colors_to_draw[ y * visibly_world_size[0] + x ];
+			str[0]= c;
+            if( c == '@' )
+            	str[1]= ushort( player_arrow );
+            else
+            	str[1]= ' ';
+                p= AddTextUnicode( p.x, p.y, &map_colors[ color_id ], 1.0f, str );
+                //p= AddText( p.x, p.y, &map_colors[ color_id ], 1.0f, "%c%c", c, ' ' );
+        }
+        p.y-= float( DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y );
+    }
+}
 void r_Renderer::DrawCursor()
 {
     m_Vec3 text_color( 1.0f, 1.0f, 1.0f );
@@ -605,6 +660,13 @@ show_inventory_block:
 
 void r_Renderer::UpdateGPUData()
 {
+    if( world_map_updated  )
+    {
+        memcpy( world_map_to_draw, world_map, visibly_world_size[0] * visibly_world_size[1] );
+        memcpy( world_map_colors_to_draw, world_map_colors, visibly_world_size[0] * visibly_world_size[1] );
+        world_map_updated= false;
+
+    }
     if( frame_count == 0 )
     {
         SetupVertexBuffers();
@@ -811,6 +873,7 @@ void r_Renderer::Draw()
 #endif
     DrawHUD();
     DrawInventory();
+    DrawMap();
     DrawCursor();
     glEnable( GL_BLEND );
     DrawText();
@@ -1264,6 +1327,8 @@ void r_Renderer::BuildWorld()
     printf( "indeces: %d\n", t5 - t4 );
     renderer_initialized= true;
     vertex_buffer_updated= false;
+
+    UpdateWorldMap();
     host_data_mutex.unlock();
     world->Unlock();
 
@@ -1705,6 +1770,7 @@ void r_Renderer::UpdateTick()
     if( renderer_initialized )
     {
         world->ReadLock();
+        UpdateWorldMap();
         UpdateData();
         world->Unlock();
         update_count++;
@@ -2058,7 +2124,7 @@ void r_Renderer::Initialize()
     if( models_shader.Load( "shaders/glsl_120/world_frag.glsl", "shaders/glsl_120/model_vert.glsl", NULL ) )
         printf( "error. Model shader not found.\n" );
 
-	models_shader.Define( "#define NORMAL_INTERPOLATION\n" );
+    models_shader.Define( "#define NORMAL_INTERPOLATION\n" );
     models_shader.SetAttribLocation( "coord", ATTRIB_POSITION );
     models_shader.SetAttribLocation( "tex_coord", ATTRIB_TEX_COORD );
     models_shader.SetAttribLocation( "normal", ATTRIB_NORMAL );
@@ -2069,8 +2135,8 @@ void r_Renderer::Initialize()
     models_shader.FindUniform( "pos" );
     models_shader.FindUniform( "light" );
 
-     models_shader.FindUniform( "sky_ambient_light" );
-     models_shader.FindUniform( "fire_ambient_light" );
+    models_shader.FindUniform( "sky_ambient_light" );
+    models_shader.FindUniform( "fire_ambient_light" );
 
 #else//if !OGL21
     if( deferred_shading )
@@ -2078,7 +2144,7 @@ void r_Renderer::Initialize()
         if( models_shader.Load( "shaders/DS/world_frag.glsl", "shaders/DS/model_vert.glsl", NULL ) )
             printf( "error. Model shader not found.\n" );
 
-		models_shader.Define( "#define NORMAL_INTERPOLATION\n" );
+        models_shader.Define( "#define NORMAL_INTERPOLATION\n" );
         models_shader.SetAttribLocation( "coord", ATTRIB_POSITION );
         models_shader.SetAttribLocation( "tex_coord", ATTRIB_TEX_COORD );
         models_shader.SetAttribLocation( "normal", ATTRIB_NORMAL );
@@ -2096,7 +2162,7 @@ void r_Renderer::Initialize()
         if( models_shader.Load( "shaders/world_frag.glsl", "shaders/model_vert.glsl", NULL ) )
             printf( "error. Model shader not found.\n" );
 
-		models_shader.Define( "#define NORMAL_INTERPOLATION\n" );
+        models_shader.Define( "#define NORMAL_INTERPOLATION\n" );
         models_shader.SetAttribLocation( "coord", ATTRIB_POSITION );
         models_shader.SetAttribLocation( "tex_coord", ATTRIB_TEX_COORD );
         models_shader.SetAttribLocation( "normal", ATTRIB_NORMAL );
@@ -2186,8 +2252,16 @@ void r_Renderer::Initialize()
     vertex_buffer_size= 0;
     vertex_buffer= NULL;
 
-    visibly_world_size[0]= world->NumShreds();//R_SHRED_NUM;
+
+	visibly_world_size[0]= world->NumShreds();//R_SHRED_NUM;
     visibly_world_size[1]= world->NumShreds();//R_SHRED_NUM;
+
+    //world map
+    world_map= new char [ visibly_world_size[0] * visibly_world_size[1] ];
+    world_map_colors= new unsigned char [ visibly_world_size[0] * visibly_world_size[1] ];
+    world_map_to_draw= new unsigned char [ visibly_world_size[0] * visibly_world_size[1] ];
+    world_map_colors_to_draw= new unsigned char [ visibly_world_size[0] * visibly_world_size[1] ];
+
     shreds= new r_ShredInfo[ visibly_world_size[0] * visibly_world_size[1] ];
     draw_shreds=  new r_ShredInfo[ visibly_world_size[0] * visibly_world_size[1] ];
     /*setup of vertex buffer parametrs*/
@@ -2423,10 +2497,54 @@ void r_Renderer::BuildShredList()
     }
 }
 
+void r_Renderer::UpdateWorldMap()
+{
+    int x, y;
+    char c;
+    unsigned char color;
+    Shred* s;
+
+    int player_longi= player->GetLongitude() , player_lati= player->GetLatitude();
+    for( x=0; x< visibly_world_size[0]; x++ )
+    {
+
+        for( y= 0; y< visibly_world_size[1]; y++ )
+        {
+            s= shreds[ y * visibly_world_size[0] + x ].shred;
+            c= s->TypeOfShred( s->Longitude(), s->Latitude() );
+            if( s->Latitude() ==  player_lati && s->Longitude() ==  player_longi )
+                c= '@';
+
+            if( c == '~' )
+                color= MAP_SHRED_COLOR_ID_WATER;
+            else if( c == '.' )
+                color= MAP_SHRED_COLOR_ID_PLAIN;
+            else if( c == '^' )
+                color= MAP_SHRED_COLOR_ID_MOUNTAIN;
+            else if( c == '%' )
+                color= MAP_SHRED_COLOR_ID_FOREST;
+            else if( c == '+' )
+                color= MAP_SHRED_COLOR_ID_HILL;
+            else if( c == 'p' )
+                color= MAP_SHRED_COLOR_ID_PYRAMID;
+            else if( c == '@' )
+                color= MAP_PLAYER_COLOR_ID;
+            else if( c == ':' )
+                color= MAP_SHRED_COLOR_ID_DESERT;
+            else
+                color= MAP_SHRED_COLOR_ID_DEFAULT;
+
+            world_map_colors[ y * visibly_world_size[0] + x ]= color;
+            world_map[ y * visibly_world_size[0] + x ]= c;
+        }
+    }
+    world_map_updated= true;
+}
 
 void r_Renderer::MoveMap( int dir )
 {
     host_data_mutex.lock();
+
 
     short x, y, dx, dy, x0, y0, x1, y1, x_shift, y_shift;
 
@@ -2609,8 +2727,6 @@ void r_Renderer::MoveMap( int dir )
     Shred* world_shred= world->GetShred( 16 * visibly_world_size[0]/2, 16 * visibly_world_size[1]/2 );
     center_shred_latitude= world_shred->Latitude();
     center_shred_longitude= world_shred->Longitude();
-
-
 
     host_data_mutex.unlock();
 }

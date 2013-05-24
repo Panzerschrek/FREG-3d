@@ -76,7 +76,7 @@ void main()
  
     //light+= FlashLight(coord, normal );
 
-    #ifdef SMOOUTH_SHADOWS
+    #ifndef SMOOUTH_SHADOWS
     vec2 delta;
     delta= vec2( 0.125, 0.125 ) + abs( shadow_coord.xy );
     delta= 0.004 * ( 0.125 + 0.125 * 0.125 ) * ( delta * delta );

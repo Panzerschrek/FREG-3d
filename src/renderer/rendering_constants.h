@@ -32,3 +32,26 @@
 
 #define INVENTORY_WIDTH 27
 #define PLAYER_INVENTORY_WIDTH 33//in symbols
+
+#define MAP_SHRED_COLOR_DEFAULT		m_Vec3( 1.0f, 1.0f, 1.0f )
+#define MAP_SHRED_COLOR_WATER 		m_Vec3( 0.1f, 0.1f, 1.0f )
+#define MAP_SHRED_COLOR_PLAIN 		m_Vec3( 0.1f, 0.8f, 0.1f )
+#define MAP_SHRED_COLOR_FOREST 		m_Vec3( 0.1f, 0.6f, 0.1f )
+#define MAP_SHRED_COLOR_HILL		m_Vec3( 0.4f, 0.6f, 0.4f )
+#define MAP_SHRED_COLOR_MOUNTAIN 	m_Vec3( 0.5f, 0.5f, 0.5f )
+#define MAP_SHRED_COLOR_DESERT		m_Vec3( 0.4f, 0.4f, 0.1f )
+#define MAP_SHRED_COLOR_TEST		m_Vec3( 0.8f, 0.8f, 0.8f )
+#define MAP_SHRED_COLOR_PYRAMID		m_Vec3( 0.7f, 0.7f, 0.6f )
+#define MAP_PLAYER_COLOR			m_Vec3( 1.0f, 0.3f, 0.3f )
+
+#define MAP_SHRED_COLOR_ID_DEFAULT		0
+#define MAP_SHRED_COLOR_ID_WATER 		1
+#define MAP_SHRED_COLOR_ID_PLAIN 		2
+#define MAP_SHRED_COLOR_ID_FOREST 		3
+#define MAP_SHRED_COLOR_ID_HILL			4
+#define MAP_SHRED_COLOR_ID_MOUNTAIN 	5
+#define MAP_SHRED_COLOR_ID_DESERT		6
+#define MAP_SHRED_COLOR_ID_TEST			7
+#define MAP_SHRED_COLOR_ID_PYRAMID		8
+#define MAP_PLAYER_COLOR_ID				9
+

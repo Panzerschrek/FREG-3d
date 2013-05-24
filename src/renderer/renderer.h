@@ -119,7 +119,7 @@ struct r_ShredInfo
 #define R_NUMBER_OF_NOTIFY_LINES 8
 #define R_NOTIFY_LINE_LENGTH 64
 
-#define R_LETTER_BUFFER_LEN 2048
+#define R_LETTER_BUFFER_LEN 8192
 
 class r_Renderer
 {
@@ -178,12 +178,14 @@ private:
     void DrawWorld();
     void DrawSky();
     void DrawHUD();
+    void DrawMap();
     void DrawSun();
     void DrawWater();
     void DrawBuildCube();
     void DrawInventory();
     void LoadTextures();
     void LoadModels();
+    void UpdateWorldMap();
 
     QMutex gpu_data_mutex, host_data_mutex;
 
@@ -218,6 +220,13 @@ private:
     unsigned int vertex_buffer_size;//size of buffer
     unsigned int vertices_in_buffer;//real count of vertices in buffer
     unsigned int index_buffer_size;
+
+
+	//map
+	char* world_map, *world_map_to_draw;
+	unsigned char* world_map_colors, *world_map_colors_to_draw;
+	bool world_map_updated;
+
 
     //shred list
     r_ShredInfo* shreds, *draw_shreds;
@@ -391,6 +400,7 @@ inline void r_Renderer::UpdateAll()
             shreds[ x + visibly_world_size[0] * y ].visibly_information_is_valid= false;
         }
     }
+   // UpdateWorldMap();
 }
 
 
