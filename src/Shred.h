@@ -21,11 +21,13 @@
 #include <QList>
 #include "blocks.h"
 
+const bool FLAT_GENERATION=false;
+
 class QFile;
 class World;
 
 const char DEFAULT_SHRED='.';
-const char OUT_BORDER_SHRED=':';
+const char OUT_BORDER_SHRED='~';
 
 class Shred {
 	Block * blocks[SHRED_WIDTH][SHRED_WIDTH][HEIGHT];
@@ -40,7 +42,9 @@ class Shred {
 	QList<Active *> fallList;
 
 	public:
+	///Returns y (line) shred coordinate on world map.
 	long Longitude() const;
+	///Returns x (column) shred coordinate on world map.
 	long Latitude()  const;
 	ushort ShredX() const;
 	ushort ShredY() const;
@@ -95,11 +99,17 @@ class Shred {
 
 	private:
 	QString FileName() const;
-	public:
+	public: //TODO: make private (made public for map in screen)
 	char TypeOfShred(long longi, long lati) const;
-private:
+	private:
+
 	void NormalUnderground(ushort depth=0, int sub=SOIL);
-	void CoverWith(int kind, int sub, ushort thickness);
+	void CoverWith(int kind, int sub);
+	///Puts num things(kind-sub) in random places on shred surface.
+	/**If on_water is false, this will not drop things on water,
+	 * otherwise on water too.
+	 */
+	void RandomDrop(ushort num, int kind, int sub, bool on_water=false);
 
 	void PlantGrass();
 	void TestShred();

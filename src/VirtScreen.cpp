@@ -78,6 +78,7 @@ VirtScreen::VirtScreen(World * const world_, Player * const player_) :
 	connect(w, SIGNAL(UpdatesEnded()),
 		this, SLOT(UpdatesEnd()),
 		Qt::DirectConnection);
+
 }
 
 void VirtScreen::CleanAll() {}

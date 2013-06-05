@@ -168,6 +168,14 @@ void Screen::UpdateAll()
     }
 }
 
+void Screen::PlayerMoved( long x, long y, ushort z )
+{
+    player_global_pos.x= float(x) -0.5f;
+    player_global_pos.y= float(y) -0.5f;
+    player_global_pos.z= float(z) + 0.5f/*- cos( cam_ang.x + m_Math::FM_PI2 ) + 1.0f*/;
+
+}
+
 Screen::Screen(
     World * const wor,
     Player * const pl):
@@ -243,10 +251,9 @@ Screen::Screen(
 
     //current_screen= this;
 
-    /*  connect(this, SIGNAL(InputReceived(int, int)),
-              player, SLOT(Act(int, int)),
-              Qt::DirectConnection);*/
-
+    connect(player, SIGNAL(Moved(long, long, ushort) ),
+            this, SLOT( PlayerMoved( long, long, ushort) ),
+            Qt::DirectConnection);
 
     screenshot_number= 0;
     current_screen= this;
@@ -393,7 +400,7 @@ void Screen::mousePressEvent(QMouseEvent * e)
     {
         QPoint cur_local_pos= gl_widget->mapFromGlobal( cursor.pos() );
         int current_slot= ( cur_local_pos.y() + 3 * DEFAULT_FONT_HEIGHT - screen_height/2 + screen_height/4 )/
-        DEFAULT_FONT_HEIGHT - 1;
+                          DEFAULT_FONT_HEIGHT - 1;
 
         Inventory* inv;
         if( cur_local_pos.x() > DEFAULT_FONT_WIDTH &&
@@ -468,10 +475,10 @@ void Screen::mousePressEvent(QMouseEvent * e)
     }
     else if( e->button() == Qt::LeftButton )
     {
-    	if( !( build_x == player->X() && build_y == player->Y() && build_z == player->Z() ) )
-         player->Damage( build_x, build_y, build_z );
+        if( !( build_x == player->X() && build_y == player->Y() && build_z == player->Z() ) )
+            player->Damage( build_x, build_y, build_z );
     }
-        //w->Damage( build_x, build_y, build_z, 10000, DIG );
+    //w->Damage( build_x, build_y, build_z, 10000, DIG );
     else if( e->button() == Qt::MiddleButton )
         active_hand= ( active_hand + 1 ) & 1;
 }
@@ -480,7 +487,7 @@ void Screen::mouseMoveEvent(QMouseEvent * e )
 }
 void Screen::keyPressEvent( QKeyEvent* e )
 {
-	QString s("give 6 12");
+    QString s("give 6 12");
     int key= e->key();
     key= ( key & 0xff ) | ( key >> 16 );
     if( key < 512 )
@@ -514,18 +521,18 @@ void Screen::keyPressEvent( QKeyEvent* e )
     case Qt::Key_I:
         player->Backpack();
         if( player->UsingSelfType() == OPEN )
-        	use_mouse= false;
-		else
-			use_mouse= true;
+            use_mouse= false;
+        else
+            use_mouse= true;
         break;
 
     case Qt::Key_BracketRight:
         need_save_screenshot= true;
         break;
 
-	case Qt::Key_E:
+    case Qt::Key_E:
         player->ProcessCommand( s );
-		break;
+        break;
 
     default:
         break;
@@ -715,23 +722,19 @@ void Screen::InputTick()
 
     if( ! free_look )
     {
-        m_Vec3 new_cam_pos;
-        new_cam_pos.x= float( player->X() + (w->Latitude() - w->NumShreds()/2 ) * 16  ) -0.5f;
-        new_cam_pos.y= float( player->Y() + (w->Longitude() - w->NumShreds()/2 ) * 16  ) -0.5f;
-        new_cam_pos.z= float( player->Z() ) + 0.5f/*- cos( cam_ang.x + m_Math::FM_PI2 ) + 1.0f*/;
+        /* m_Vec3 new_cam_pos;
+         new_cam_pos.x= float( player->X() + (w->Latitude() - w->NumShreds()/2 ) * 16  ) -0.5f;
+         new_cam_pos.y= float( player->Y() + (w->Longitude() - w->NumShreds()/2 ) * 16  ) -0.5f;
+         new_cam_pos.z= float( player->Z() ) + 0.5f/*- cos( cam_ang.x + m_Math::FM_PI2 ) + 1.0f;*/
 
-        unsigned char upper_block_sub= w->GetBlock( player->X(), player->Y(), player->Z() + 1 )->Sub() ;
-        if( !( upper_block_sub == AIR || upper_block_sub == WATER ) || keys[ Qt::Key_X ] )
-            new_cam_pos.z-= 1.0f;
-
-        cam_pos= cam_pos * cam_lag + ( 1.0f - cam_lag ) * new_cam_pos;
-        if( ( cam_pos - new_cam_pos ).Length() > 2.0f )
+        cam_pos= cam_pos * cam_lag + ( 1.0f - cam_lag ) * player_global_pos;
+        if( ( cam_pos - player_global_pos ).Length() > 2.0f )
         {
-            cam_pos = new_cam_pos + ( ( cam_pos - new_cam_pos ).Normalize() ) * 2.0f;
+            cam_pos = player_global_pos + ( ( cam_pos - player_global_pos ).Normalize() ) * 2.0f;
         }
 
-        if( !( upper_block_sub == AIR || upper_block_sub == WATER ) || keys[ Qt::Key_X ] )
-            cam_pos.z= min( float( player->Z() ) - 0.5f, cam_pos.z );
+        /*if( !( upper_block_sub == AIR || upper_block_sub == WATER ) || keys[ Qt::Key_X ] )
+            cam_pos.z= min( float( player->Z() ) - 0.5f, cam_pos.z );*/
     }
     if( w->GetBlock( player->X(), player->Y(), player->Z()+  1 )->Sub() == WATER )
         renderer->SetUnderwaterMode( true );

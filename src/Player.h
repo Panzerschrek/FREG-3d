@@ -49,7 +49,7 @@ class Shred;
 class Player : public QObject {
 	Q_OBJECT
 
-	ulong homeLongi, homeLati;
+	long homeLongi, homeLati;
 	short homeX, homeY, homeZ;
 	short x, y, z; //current position
 	int dir;
@@ -91,6 +91,7 @@ class Player : public QObject {
 	void SetPlayer(ushort set_x, ushort set_y, ushort set_z);
 
 	signals:
+	void Moved(long x, long y, ushort z) const;
 	///This is emitted when a notification is needed to be displayed.
 	/** It should be connected to screen::Notify(const QString &). */
 	void Notify(const QString &) const;
@@ -108,22 +109,20 @@ class Player : public QObject {
 	public:
 	///This returns current player block X (coordinates in loaded zone)
 	ushort X() const;
-
 	///This returns current player block Y (coordinates in loaded zone)
 	ushort Y() const;
-
 	///This returns current player block Z (coordinates in loaded zone)
 	ushort Z() const;
+	long GlobalX() const;
+	long GlobalY() const;
 
 	///This returns current player direction (see enum dirs in header.h)
 	int Dir() const;
 
 	///This returns player hitpoints, also known as durability.
 	short HP() const;
-
 	///This returns player breath reserve.
 	short Breath() const;
-
 	short Satiation() const;
 
 	///This returns player block itself.
@@ -165,11 +164,11 @@ class Player : public QObject {
 	void Use(short x, short y, short z);
 
 	///Tries to use block number num in inventory.
-	void Use     (ushort num);
+	void Use(ushort num);
 	///Tries to throw (drop out) block number num from inventory.
-	void Throw   (ushort num);
+	void Throw (ushort src, ushort dest=0, ushort num=1);
 	///Tries to get block number num from outer inventory.
-	void Obtain  (ushort num);
+	void Obtain(ushort src, ushort dest=0, ushort num=1);
 	///Returns true if wielding successful.
 	bool Wield   (ushort num);
 	void Inscribe(ushort num);
@@ -177,12 +176,12 @@ class Player : public QObject {
 	void Craft   (ushort num);
 	void TakeOff (ushort num);
 	void Build(short x, short y, short z, ushort num);
-	///Can also wield appropriate things. True if successful.
-	bool MoveInsideInventory(ushort num_from, ushort num_to);
+	///Can also wield appropriate things.
+	void MoveInsideInventory(ushort num_from, ushort num_to, ushort num=1);
 	void ProcessCommand(QString & command);
 
 	private:
-	bool InnerMove(ushort num_from, ushort num_to);
+	void InnerMove(ushort num_from, ushort num_to, ushort num=1);
 	Block * ValidBlock(ushort num) const;
 	int DamageKind() const;
 	ushort DamageLevel() const;
@@ -202,13 +201,6 @@ class Player : public QObject {
 
 	///Destructor calls Player::CleanAll().
 	~Player();
-
-	private:
-	short world_x, world_y, world_z;
-	public:
-	short WorldX(){ return world_x; }
-	short WorldY(){ return world_y; }
-	short WorldZ(){ return world_z; }
 }; //Player
 
 #endif

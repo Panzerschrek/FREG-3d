@@ -1,7 +1,7 @@
 /****************************************************************************
 ** Meta object code from reading C++ file 'world.h'
 **
-** Created: Wed 15. May 18:09:26 2013
+** Created: Thu 30. May 19:10:49 2013
 **      by: The Qt Meta Object Compiler version 63 (Qt 4.8.3)
 **
 ** WARNING! All changes made in this file will be lost!
@@ -35,19 +35,19 @@ static const uint qt_meta_data_World[] = {
       23,    6,    6,    6, 0x05,
       46,   43,    6,    6, 0x05,
       76,    6,    6,    6, 0x05,
-      98,   89,    6,    6, 0x05,
-     141,    6,    6,    6, 0x05,
-     152,    6,    6,    6, 0x05,
-     164,    6,    6,    6, 0x05,
-     179,   43,    6,    6, 0x05,
-     212,    6,    6,    6, 0x05,
-     229,    6,    6,    6, 0x05,
-     247,    6,    6,    6, 0x05,
+     101,   89,    6,    6, 0x05,
+     144,    6,    6,    6, 0x05,
+     155,    6,    6,    6, 0x05,
+     167,    6,    6,    6, 0x05,
+     182,   43,    6,    6, 0x05,
+     215,    6,    6,    6, 0x05,
+     232,    6,    6,    6, 0x05,
+     250,    6,    6,    6, 0x05,
 
  // slots: signature, parameters, type, tag, flags
-     262,    6,    6,    6, 0x0a,
-     273,    6,    6,    6, 0x0a,
-     291,    6,    6,    6, 0x0a,
+     265,    6,    6,    6, 0x0a,
+     276,    6,    6,    6, 0x0a,
+     294,    6,    6,    6, 0x0a,
 
        0        // eod
 };
@@ -55,7 +55,7 @@ static const uint qt_meta_data_World[] = {
 static const char qt_meta_stringdata_World[] = {
     "World\0\0Notify(QString)\0GetString(QString&)\0"
     ",,\0Updated(ushort,ushort,ushort)\0"
-    "UpdatedAll()\0,,,level\0"
+    "UpdatedAll()\0x,y,z,level\0"
     "UpdatedAround(ushort,ushort,ushort,ushort)\0"
     "Moved(int)\0ReConnect()\0UpdatesEnded()\0"
     "NeedPlayer(ushort,ushort,ushort)\0"

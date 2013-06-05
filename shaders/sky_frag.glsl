@@ -1,7 +1,7 @@
 #version 330
 
 uniform samplerCube cu; 
-uniform vec3 sky_color= vec3( 4.78, 6.92, 12.32) * 2.0f; 
+uniform vec3 sky_color= vec3( 4.78, 6.92, 12.32) * 2.0; 
 uniform vec3 sun_vector;
 
 in vec3 view_vector;
@@ -14,10 +14,10 @@ void main( void )
 
    	vec3 tc= view_vector;
 	tc= normalize( tc );
-	vec3 c= texture( cu, tc ).xyz * 0.25f;
+	vec3 c= texture( cu, tc ).xyz * 0.5;
 
 
-	float sky_fact= ( 2.0f - tc.y ) * 0.5f;
+	float sky_fact= ( 2.0f - tc.y ) * 0.5;
 	vec3 sv;
 	sv.x= sun_vector.x;
 	sv.y= sun_vector.z;

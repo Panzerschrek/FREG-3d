@@ -30,6 +30,12 @@
 ushort Player::X() const { return x; }
 ushort Player::Y() const { return y; }
 ushort Player::Z() const { return z; }
+long Player::GlobalX() const {
+	return (GetShred()->Latitude() -x/SHRED_WIDTH)*SHRED_WIDTH+x;
+}
+long Player::GlobalY() const {
+	return (GetShred()->Longitude()-y/SHRED_WIDTH)*SHRED_WIDTH+y;
+}
 
 Shred * Player::GetShred() const { return world->GetShred(x, y); }
 
@@ -153,28 +159,20 @@ void Player::Move(const int dir) {
 	} else {
 		switch ( dir ) {
 			case NORTH:
-				if (y>=(world->NumShreds()/2-1)*SHRED_WIDTH+1 )
-				{
+				if (y>=(world->NumShreds()/2-1)*SHRED_WIDTH+1)
 					--y;
-				}
 			break;
 			case SOUTH:
 				if (y<(world->NumShreds()/2+2)*SHRED_WIDTH-1)
-				{
 					++y;
-				}
 			break;
 			case EAST:
 				if (x<(world->NumShreds()/2+2)*SHRED_WIDTH-1)
-				{
 					++x;
-				}
 			break;
 			case WEST:
 				if (x>=(world->NumShreds()/2-1)*SHRED_WIDTH+1)
-				{
 					--x;
-				}
 			break;
 			case UP:
 				if ( z<HEIGHT-2 ) {
@@ -191,26 +189,18 @@ void Player::Move(const int dir) {
 					"Player::Move: unlisted dir: %d",
 					dir);
 		}
-		emit Updated();
 	}
-	if ( world->GetBlock( x, y, z)->Sub() == AIR );
 }
 
 void Player::Turn(const int dir) {
-	world->WriteLock();
 	usingType=NO;
-	Dir(( (DOWN==Dir() && UP!=dir) ||
-			(UP==Dir() && DOWN!=dir) ) ?
-		NORTH :
-		dir);
-	emit Updated();
-	world->Unlock();
+	Dir( ((DOWN==Dir() && UP!=dir) || (UP==Dir() && DOWN!=dir) ) ?
+		NORTH : dir);
 }
 
 void Player::Backpack() {
 	if ( player && player->HasInventory() ) {
 		usingSelfType=( OPEN==usingSelfType ) ? NO : OPEN;
-		emit Updated();
 	}
 }
 
@@ -262,79 +252,55 @@ void Player::Use(const ushort num) {
 	world->Unlock();
 }
 
-void Player::Throw(const ushort num) {
-	world->WriteLock();
-	Block * const block=ValidBlock(num);
-	world->Unlock();
-	if ( block ) {
-		world->SetDeferredAction(
-			0, 0, 0,
-			UP, //doesn't matter here
-			DEFERRED_THROW,
-			x, y, z,
-			0, //what, doesn't matter here
-			0, //who
-			num);
-	}
+void Player::Throw(const ushort src, const ushort dest, const ushort num) {
+	world->SetDeferredAction(
+		num, 0, 0,
+		UP, //doesn't matter here
+		DEFERRED_THROW,
+		x, y, z,
+		0, //what, doesn't matter here
+		0, //who
+		src,
+		dest);
 }
 
-void Player::Obtain(const ushort num) {
+void Player::Obtain(const ushort src, const ushort dest, const ushort num) {
 	world->WriteLock();
-	bool update_flag=false;
-	const int err=world->Get(x, y, z, num);
-	ushort x_from, y_from, z_from;
-	Focus(x_from, y_from, z_from);
-	Inventory * const inv=world->
-		GetBlock(x_from, y_from, z_from)->HasInventory();
-	world->Unlock();
-	if ( !inv || inv->IsEmpty() ) {
-		update_flag=true;
+	world->Get(x, y, z, src, dest, num);
+	Block * const using_block=UsingBlock();
+	if ( using_block->HasInventory()->IsEmpty() &&
+			PILE==using_block->Kind())
+	{
 		usingType=NO;
 	}
-	if ( 5==err || 3==err || 6==err ) {
-		emit Notify("Nothing here.");
-	} else if ( 4==err || 2==err ) {
-		emit Notify("No room.");
-	} else {
-		update_flag=true;
-	}
-	if ( update_flag ) {
-		emit Updated();
-	}
+	world->Unlock();
 }
 
 bool Player::Wield(const ushort num) {
 	world->WriteLock();
 	if ( ValidBlock(num) ) {
 		for (ushort i=0; i<=Dwarf::onLegs; ++i ) {
-			if ( InnerMove(num, i) ) {
-				world->Unlock();
-				emit Notify(tr("Wielded."));
-				return true;
-			}
+			InnerMove(num, i);
 		}
 	}
-	emit Notify(tr("You cannot wield this."));
 	world->Unlock();
 	return false;
 }
 
-bool Player::MoveInsideInventory(const ushort num_from, const ushort num_to) {
+void Player::MoveInsideInventory(const ushort num_from, const ushort num_to,
+		const ushort num)
+{
 	world->WriteLock();
-	if ( ValidBlock(num_from) && InnerMove(num_from, num_to) ) {
-		world->Unlock();
-		return true;
+	if ( ValidBlock(num_from) ) {
+		InnerMove(num_from, num_to, num);
 	}
 	world->Unlock();
-	return false;
 }
 
-bool Player::InnerMove(const ushort num_from, const ushort num_to) {
-	Inventory * const inv=PlayerInventory();
-	if ( !inv ) {
-		return false;
-	}
-	return ( inv->MoveInside(num_from, num_to) );
+void Player::InnerMove(const ushort num_from, const ushort num_to,
+		const ushort num)
+{
+	PlayerInventory()->MoveInside(num_from, num_to, num);
 }
 
 void Player::Inscribe(const ushort num) {
@@ -423,7 +389,7 @@ void Player::TakeOff(const ushort num) {
 	if ( ValidBlock(num) ) {
 		Inventory * const inv=PlayerInventory();
 		if ( inv->HasRoom() ) {
-			inv->Drop(num, inv);
+			inv->Drop(num, inv->Start(), inv->Number(num), inv);
 		} else {
 			emit Notify("No place to take off.");
 		}
@@ -443,7 +409,7 @@ void Player::ProcessCommand(QString & command) {
 	if ( "give"==request ) {
 		world->WriteLock();
 		Inventory * const inv=player->HasInventory();
-		if ( !creativeMode && false ) {
+		if ( !creativeMode ) {
 			emit Notify(tr("You are not in Creative Mode."));
 		} else if ( !inv ) {
 			emit Notify(tr("No room."));
@@ -548,23 +514,26 @@ void Player::Damage(
 		const short z_target)
 const {
 	world->SetDeferredAction(
-			x_target, y_target, z_target,
-			0, //direction doesn't matter here
-			DEFERRED_DAMAGE,
-			x, y, z,
-			0, //what block - doesn't matter
-			0, //who
-			( creativeMode ?
-				MAX_DURABILITY : player->DamageLevel() ),
-			( creativeMode ? TIME : player->DamageKind() ));
+		x_target, y_target, z_target,
+		0, //direction doesn't matter here
+		DEFERRED_DAMAGE,
+		x, y, z,
+		0, //what block - doesn't matter
+		0, //who
+		DamageLevel(),
+		DamageKind());
 }
 
 int Player::DamageKind() const {
-	return player ? player->DamageKind() : NO_HARM;
+	return creativeMode ?
+		TIME :
+		player ? player->DamageKind() : NO_HARM;
 }
 
 ushort Player::DamageLevel() const {
-	return player ? player->DamageLevel() : 0;
+	return creativeMode ?
+		MAX_DURABILITY :
+		player ? player->DamageLevel() : 0;
 }
 
 void Player::CheckOverstep(const int dir) {
@@ -578,6 +547,7 @@ void Player::CheckOverstep(const int dir) {
 		emit OverstepBorder(dir);
 		UpdateXYZ();
 	}
+	emit Moved(GlobalX(), GlobalY(), z);
 }
 
 void Player::BlockDestroy() {
@@ -621,13 +591,16 @@ void Player::SetPlayer(
 	y=player_y;
 	z=player_z;
 	if ( DWARF!=world->Kind(x, y, z) ) {
-		block_manager.DeleteBlock(world->GetBlock(x, y, z));
-		world->SetBlock( (player=block_manager.
-			NewBlock(DWARF, H_MEAT)->ActiveBlock()), x, y, z );
+		world->Build( (player=block_manager.
+				NewBlock(DWARF, H_MEAT)->ActiveBlock()),
+			x, y, z,
+			Dir(),
+			0,
+			true /*force build*/ );
 	} else {
 		player=world->ActiveBlock(x, y, z);
+		Dir(world->GetBlock(x, y, z)->GetDir());
 	}
-	Dir(world->GetBlock(x, y, z)->GetDir());
 
 	connect(player, SIGNAL(Destroyed()),
 		this, SLOT(BlockDestroy()),
@@ -693,7 +666,7 @@ Player::Player(World * const w) :
 	homeZ=sett.value("home_z", HEIGHT/2).toInt();
 	x    =sett.value("current_x", 0).toInt();
 	y    =sett.value("current_y", 0).toInt();
-	z    =sett.value("current_z", HEIGHT/2).toInt();
+	z    =sett.value("current_z", HEIGHT/2+1).toInt();
 	creativeMode=sett.value("creative_mode", false).toBool();
 
 	const ushort plus=world->NumShreds()/2*SHRED_WIDTH;

@@ -331,24 +331,39 @@ void r_Renderer::DrawRain()
     rain.ShowWeatherParticles( time > 13.5f ? rain.SNOW : rain.RAIN );
 }
 
+void r_Renderer::CopyDepthBuffer()
+{
+    glBindTexture( GL_TEXTURE_2D, scene_depth_buffer );
+   // #ifdef OGL21
+    //glCopyTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, 0, 0, viewport_x, viewport_y, 0 );
+   // #else
+    glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, viewport_x, viewport_y );
+    //#endif
+    r_Texture::ResetBinding();
+}
 
 void r_Renderer::DrawWater()
 {
-    //texture_manager.TextureArray()->Bind(0);
 
-    sun_shadow_map[ front_shadowmap ].BindDepthTexture(1);
-    //texture_manager.BindMaterialPropertyTexture(3);
-    glActiveTexture( GL_TEXTURE3 );
+
+    sun_shadow_map[ front_shadowmap ].BindDepthTexture(0);
+
+    glActiveTexture( GL_TEXTURE1 );
     glBindTexture( GL_TEXTURE_3D, water_texture );
+
+    glActiveTexture( GL_TEXTURE2 );
+    glBindTexture( GL_TEXTURE_2D, scene_depth_buffer );
+    //scene_hdr_buffer.BindDepthTexture(2);
 
     water_shader.Bind();
     water_shader.Uniform( "proj_mat", view_matrix );
-    water_shader.Uniform( "tex", 0 );
+    // water_shader.Uniform( "tex", 0 );
 
 
     water_shader.Uniform( "sun_vector", sun_vector );
-    water_shader.Uniform( "shadow_map", 1 );
-    water_shader.Uniform( "normal_map", 3 );
+    water_shader.Uniform( "shadow_map", 0 );
+    water_shader.Uniform( "depth_buffer", 2 );
+    water_shader.Uniform( "normal_map", 1 );
     water_shader.Uniform( "proj_mat", view_matrix );
     water_shader.Uniform( "shadow_mat", shadow_matrix );
     water_shader.Uniform( "cam_pos", frame_cam_position );
@@ -362,9 +377,23 @@ void r_Renderer::DrawWater()
     water_shader.Uniform( "sky_ambient_light", sky_ambient_light );
     water_shader.Uniform( "fire_ambient_light", fire_ambient_light );
     water_shader.Uniform( "time", float( clock() ) / float( CLOCKS_PER_SEC ) );
+    water_shader.Uniform( "underwater_fog_factor", underwater ? 0.0f : 1.0f );
 
-    float max_view= 1.0 / ( float( world->NumShreds() - 1 ) * 0.5f * 16.0f );
+    m_Vec3 inv_screen_size( 1.0f / float( viewport_x ), 1.0f / float( viewport_y ), 0.0f );
+    water_shader.Uniform( "inv_screen_size", inv_screen_size );
+
+    m_Vec3 depth_convert_k;
+    depth_convert_k.x= - z_far * z_near / ( z_far - z_near );
+    depth_convert_k.y= - z_far / ( z_far - z_near );
+    water_shader.Uniform( "depth_convert_k", depth_convert_k );
+
+    float max_view= 1.0f / ( float( world->NumShreds() - 1 ) * 0.5f * 16.0f );
     water_shader.Uniform( "max_view2", max_view * max_view );
+
+     m_Vec3 viewport_scale;
+    	viewport_scale.y= m_Math::Tan( fov * 0.5f );
+    	viewport_scale.x= viewport_scale.y * float( viewport_x ) / float( viewport_y );
+    	water_shader.Uniform( "viewport_scale", viewport_scale );
 
 
     world_buffer.Bind();
@@ -485,13 +514,13 @@ void r_Renderer::DrawMap()
         {
             c= world_map_to_draw[ y * visibly_world_size[0] + x ];
             color_id= world_map_colors_to_draw[ y * visibly_world_size[0] + x ];
-			str[0]= c;
+            str[0]= c;
             if( c == '@' )
-            	str[1]= ushort( player_arrow );
+                str[1]= ushort( player_arrow );
             else
-            	str[1]= ' ';
-                p= AddTextUnicode( p.x, p.y, &map_colors[ color_id ], 1.0f, str );
-                //p= AddText( p.x, p.y, &map_colors[ color_id ], 1.0f, "%c%c", c, ' ' );
+                str[1]= ' ';
+            p= AddTextUnicode( p.x, p.y, &map_colors[ color_id ], 1.0f, str );
+            //p= AddText( p.x, p.y, &map_colors[ color_id ], 1.0f, "%c%c", c, ' ' );
         }
         p.y-= float( DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y );
     }
@@ -519,8 +548,8 @@ void r_Renderer::DrawBuildCube()
 
     if( frame_count == 0 )
     {
-        glLineWidth( 3.0f );
-        //glEnable( GL_LINE_SMOOTH );
+        glLineWidth( 1.0f );
+        glDisable( GL_LINE_SMOOTH );
     }
     cube_shader.Bind();
     cube_shader.Uniform( "cube_pos", build_position );
@@ -844,12 +873,17 @@ void r_Renderer::Draw()
 
     DrawSky();
 
+    if( !underwater )
+        CopyDepthBuffer();
+
+
     glEnable( GL_BLEND );
     DrawSun();
 
     if( underwater )
     {
         DrawRain();
+
         glDisable( GL_CULL_FACE );
         DrawWater();
         glEnable( GL_CULL_FACE );
@@ -859,6 +893,7 @@ void r_Renderer::Draw()
         glDisable( GL_CULL_FACE );
         DrawWater();
         glEnable( GL_CULL_FACE );
+
         DrawRain();
     }
 
@@ -1068,7 +1103,9 @@ void r_Renderer::MakePostProcessing()
 
     //\EA\EE\ED\E5\F7\ED\FB\E9 \FD\F2\E0\EF
 
-
+    m_Vec3 depth_convert_k;
+    depth_convert_k.x= - z_far * z_near / ( z_far - z_near );
+    depth_convert_k.y= - z_far / ( z_far - z_near );
 
     if( underwater )
     {
@@ -1083,21 +1120,30 @@ void r_Renderer::MakePostProcessing()
         underwater_postprocess_shader.Uniform( "bloom_buffer", 1 );
         underwater_postprocess_shader.Uniform( "depth_buffer", 2 );
         underwater_postprocess_shader.Uniform ( "adapted_brightness", scene_brightness );
+        underwater_postprocess_shader.Uniform( "depth_convert_k", depth_convert_k );
 
         inv_screen_size= m_Vec3( 1.0f/float(viewport_x/2), 1.0f/float(viewport_y/2), 0.0f );
         underwater_postprocess_shader.Uniform( "inv_screen_size", inv_screen_size );
+
+        m_Vec3 viewport_scale;
+    	viewport_scale.y= m_Math::Tan( fov * 0.5 );
+    	viewport_scale.x= viewport_scale.y * float( viewport_x ) / float( viewport_y );
+    	underwater_postprocess_shader.Uniform( "viewport_scale", viewport_scale );
     }
     else
     {
         bloom_buffer[1].BindColorTexture( 0, 1 );
         scene_hdr_buffer.BindColorTexture( 0, 0 );
         scene_hdr_buffer.BindDepthTexture(2);
+        //glActiveTexture( GL_TEXTURE2 );
+        //glBindTexture( GL_TEXTURE_2D, scene_depth_buffer );
 
         postprocess_shader.Bind();
         postprocess_shader.Uniform( "scene_buffer", 0 );
         postprocess_shader.Uniform( "bloom_buffer", 1 );
         postprocess_shader.Uniform( "depth_buffer", 2 );
         postprocess_shader.Uniform ( "adapted_brightness", scene_brightness );
+        postprocess_shader.Uniform( "depth_convert_k", depth_convert_k );
 
         inv_screen_size= m_Vec3( 1.0f/float(viewport_x), 1.0f/float(viewport_y), 0.0f );
         postprocess_shader.Uniform( "inv_screen_size", inv_screen_size );
@@ -1821,40 +1867,8 @@ void r_Renderer::LoadTextures()
 }
 
 
-
-void r_Renderer::Initialize()
+void r_Renderer::LoadShaders()
 {
-    gpu_data_mutex.lock();
-
-
-    GetGLFunctions();
-    printf( "functions ready\n" );
-    current_renderer= this;
-
-    GetExtensionsStrings();
-#if OGL21
-    if( ! GLExtensionSupported( "GL_ARB_draw_elements_base_vertex" ) )
-        printf( "error, extension \"GL_ARB_draw_elements_base_vertex\" not supported.\n" );
-#endif
-
-    printf( "\n\n#video information:\n" );
-    char* vendorname= glGetString( GL_VENDOR );
-    if( !strcmp( vendorname, "NVIDIA Corporation" ) )
-        printf( "vendor:            %s\n", vendorname );
-    else
-        printf( "warning, \"%s\" is not a graphics card.\n", vendorname );
-    printf( "gl version:        %s\n", glGetString( GL_VERSION ) );
-
-    int i_tmp;
-    glGetIntegerv( GL_MAX_TEXTURE_IMAGE_UNITS, &i_tmp ) ;
-    printf( "texture units:     %d\n", i_tmp );
-    glGetIntegerv( GL_MAX_TEXTURE_SIZE, &i_tmp );
-    printf( "max texture size: %d\n", i_tmp );
-    glGetIntegerv( GL_MAX_ARRAY_TEXTURE_LAYERS, &i_tmp );
-    printf( "max texture layers in array: %d\n", i_tmp );
-
-
-
 #ifdef OGL21
     if( world_shader.Load( "shaders/glsl_120/world_frag.glsl",
                            "shaders/glsl_120/world_vert.glsl", NULL ) )
@@ -1922,7 +1936,14 @@ void r_Renderer::Initialize()
     water_shader.SetAttribLocation( "light", /*ATTRIB_USER0*/3 );
 
     water_shader.MoveOnGPU();
-    water_shader.FindUniform( "tex" );
+
+    water_shader.FindUniform( "depth_buffer" );
+    water_shader.FindUniform( "depth_convert_k" );
+    water_shader.FindUniform( "underwater_fog_factor" );
+    water_shader.FindUniform( "inv_screen_size" );
+    water_shader.FindUniform( "viewport_scale" );
+
+    //water_shader.FindUniform( "tex" );
     water_shader.FindUniform( "shadow_map" );
     water_shader.FindUniform( "normal_map" );
     water_shader.FindUniform( "shadow_mat" );
@@ -1932,7 +1953,7 @@ void r_Renderer::Initialize()
     water_shader.FindUniform( "fog_color" );
     water_shader.FindUniform( "max_view2" );
     water_shader.FindUniform( "sun_vector" );
-    water_shader.FindUniform( "material_property" );
+    //water_shader.FindUniform( "material_property" );
     water_shader.FindUniform( "time" );
 
     water_shader.FindUniform( "direct_sun_light" );
@@ -2026,6 +2047,7 @@ void r_Renderer::Initialize()
     postprocess_shader.FindUniform( "adapted_brightness" );
     postprocess_shader.FindUniform( "bloom_buffer" );
     postprocess_shader.FindUniform( "inv_screen_size" );
+    postprocess_shader.FindUniform( "depth_convert_k" );
 
 #endif
 
@@ -2040,6 +2062,7 @@ void r_Renderer::Initialize()
     underwater_postprocess_shader.FindUniform( "scene_buffer" );
     underwater_postprocess_shader.FindUniform( "inv_screen_size" );
     underwater_postprocess_shader.FindUniform( "time" );
+    underwater_postprocess_shader.FindUniform( "viewport_scale" );
 
 #else
     if( underwater_postprocess_shader.Load( "shaders/postprocess_frag.glsl", "shaders/fullscreen_quad_vert.glsl", NULL ) )
@@ -2056,6 +2079,8 @@ void r_Renderer::Initialize()
     underwater_postprocess_shader.FindUniform( "bloom_buffer" );
     underwater_postprocess_shader.FindUniform( "inv_screen_size" );
     underwater_postprocess_shader.FindUniform( "time" );
+    underwater_postprocess_shader.FindUniform( "depth_convert_k" );
+    underwater_postprocess_shader.FindUniform( "viewport_scale" );
 #endif
 
 #ifndef OGL21
@@ -2187,10 +2212,12 @@ void r_Renderer::Initialize()
     }
 #endif//if !OGL21
 
-    printf( "shaders compiled\n" );
+}
 
 
-#ifdef OGL21
+void r_Renderer::SetupFrameBuffers()
+{
+	#ifdef OGL21
     underwater_buffer_gl21.SetFiltration( GL_NEAREST, GL_LINEAR );
     underwater_buffer_gl21.Create();
     underwater_buffer_gl21.TextureData( viewport_x/2, viewport_y/2, GL_UNSIGNED_INT, GL_RGB, 24, NULL );
@@ -2198,7 +2225,7 @@ void r_Renderer::Initialize()
 #else
     GLenum hdr_tex_type= GL_HALF_FLOAT;
     int hdr_tex_components= 3;
-    scene_hdr_buffer.Create( 24, 8, 1, &hdr_tex_components, &hdr_tex_type, viewport_x, viewport_y );
+    scene_hdr_buffer.Create( 24, 0, 1, &hdr_tex_components, &hdr_tex_type, viewport_x, viewport_y );
     scene_hdr_buffer.DesableDepthTextureCompareMode();
 
     scene_hdr_underwater_buffer.Create( 24, 0, 1, &hdr_tex_components, &hdr_tex_type, viewport_x/2, viewport_y/2 );
@@ -2239,7 +2266,63 @@ void r_Renderer::Initialize()
         underwater_g_buffer.ClearBuffer( true, true );
     }
 
+
 #endif
+
+glGenTextures( 1, &scene_depth_buffer );
+    glBindTexture( GL_TEXTURE_2D, scene_depth_buffer );
+
+    glTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24,
+                  viewport_x, viewport_y, 0, GL_DEPTH_COMPONENT,
+                  GL_UNSIGNED_BYTE, NULL );
+
+
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+
+}
+
+void r_Renderer::Initialize()
+{
+    gpu_data_mutex.lock();
+
+
+    GetGLFunctions();
+    printf( "functions ready\n" );
+    current_renderer= this;
+
+    GetExtensionsStrings();
+#if OGL21
+    //if( ! GLExtensionSupported( "GL_ARB_draw_elements_base_vertex" ) )
+    //   printf( "error, extension \"GL_ARB_draw_elements_base_vertex\" not supported.\n" );
+#endif
+
+    printf( "\n\n#video information:\n" );
+    char* vendorname= glGetString( GL_VENDOR );
+    if( !strcmp( vendorname, "NVIDIA Corporation" ) )
+        printf( "vendor:            %s\n", vendorname );
+    else
+        printf( "warning, \"%s\" is not a graphics card.\n", vendorname );
+    printf( "gl version:        %s\n", glGetString( GL_VERSION ) );
+
+    int i_tmp;
+    glGetIntegerv( GL_MAX_TEXTURE_IMAGE_UNITS, &i_tmp ) ;
+    printf( "texture units:     %d\n", i_tmp );
+    glGetIntegerv( GL_MAX_TEXTURE_SIZE, &i_tmp );
+    printf( "max texture size: %d\n", i_tmp );
+    glGetIntegerv( GL_MAX_ARRAY_TEXTURE_LAYERS, &i_tmp );
+    printf( "max texture layers in array: %d\n", i_tmp );
+
+
+
+    LoadShaders();
+     printf( "shaders compiled\n" );
+
+
+	SetupFrameBuffers();
 
     LoadTextures();
     printf( "textures ready\n" );
@@ -2253,7 +2336,7 @@ void r_Renderer::Initialize()
     vertex_buffer= NULL;
 
 
-	visibly_world_size[0]= world->NumShreds();//R_SHRED_NUM;
+    visibly_world_size[0]= world->NumShreds();//R_SHRED_NUM;
     visibly_world_size[1]= world->NumShreds();//R_SHRED_NUM;
 
     //world map
@@ -2318,7 +2401,7 @@ r_Renderer::r_Renderer( World* w,Player* p, int width, int height ):
     text_data_mutex( QMutex::NonRecursive ),
     update_thread( SUpdateTick, NULL, true ),
     cam_angle( 0.0, 0.0, 0.0 ),
-    fov( 70.0 * m_Math::FM_TORAD ), z_near( 0.125 ), z_far( 512.0 ),
+    fov( 70.0f * m_Math::FM_TORAD ), z_near( 0.125f ), z_far( 512.0f ),
     viewport_x(width), viewport_y(height),
     renderer_initialized( false ), full_update(false), need_full_update_shred_list(false),
     front_shadowmap(0), back_shadowmap(1),
@@ -2427,21 +2510,17 @@ void r_Renderer::BuildShredList()
                     -sin(a) * cos(b),
                     -sin(b) );
 
-    // AddText( -0.95, -0.9, &m_Vec3( 1.0, 1.0, 1.0 ), 1, "cam vector: %1.2f %1.2f %1.2f", cam_vec.x, cam_vec.y, cam_vec.z );
     a= cam_angle.z + m_Math::FM_PI2;
     b= cam_angle.x + fov * 0.5;
     m_Vec3 top_plane_vec( -cos(a) * sin(b),
                           -sin(a) * sin(b),
                           -cos(b) );
 
-    // AddText( -0.95, -0.85, &m_Vec3( 1.0, 1.0, 1.0 ), 2, "top vector: %1.2f %1.2f %1.2f", top_plane_vec.x, top_plane_vec.y, top_plane_vec.z );
-
     top_plane_vec.Normalize();
     cam_vec.Normalize();
     float tmp= cam_vec * top_plane_vec * 2.0;
     m_Vec3 bottom_plane_vec= cam_vec * tmp;
     bottom_plane_vec-= top_plane_vec;
-    // AddText( -0.95, -0.80, &m_Vec3( 1.0, 1.0, 1.0 ), 2, "bottom vector: %1.2f %1.2f %1.2f", bottom_plane_vec.x, bottom_plane_vec.y, bottom_plane_vec.z );
 
     m_Vec3 left_plane_vec;
     left_plane_vec.x= cos( cam_angle.z + m_Math::FM_PI - fov_x );
@@ -2457,15 +2536,20 @@ void r_Renderer::BuildShredList()
     {
         for( y= 0; y< visibly_world_size[1]; y ++ )
         {
+            //circle world form
+            short dx, dy;
+            dx= x - visibly_world_size[0]/2;
+            dy= y - visibly_world_size[1]/2;
+            if( dx * dx + dy * dy > visibly_world_size[0] * visibly_world_size[1] / 4 )
+                continue;
+
             shred= &draw_shreds[ x + y * visibly_world_size[0] ];
             if( shred->IsOnOtherSideOfPlane( cam_position, cam_vec ) )
             {
                 if( shred->IsOnOtherSideOfPlane( cam_position, top_plane_vec ) &&
                         shred->IsOnOtherSideOfPlane( cam_position, bottom_plane_vec ) )
                 {
-                    //if( shred->IsOnOtherSideOfPlane( cam_position, left_plane_vec ) &&
-                    //        shred->IsOnOtherSideOfPlane( cam_position, right_plane_vec ) )
-                    //{
+
                     shreds_to_draw_list[ shreds_to_draw_count ] = shred;
                     shreds_to_draw_indeces[ shreds_to_draw_count ] =0;
 
@@ -2478,7 +2562,6 @@ void r_Renderer::BuildShredList()
 #endif
 
                     shreds_to_draw_count++;
-                    //}
 
                     if( shred->water_quad_count )
                     {

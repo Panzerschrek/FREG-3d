@@ -114,7 +114,7 @@ void World::ReEnlightenTime() {
 	ReEnlightenAll();
 }
 
-//private. called from ReEnlightenTime and from World::ReloadShreds
+//private. called from ReEnlightenTime
 void World::ReEnlightenAll() {
 	disconnect(this, SIGNAL(Updated(
 		const ushort,
@@ -129,7 +129,6 @@ void World::ReEnlightenAll() {
 	for (ushort i=0; i<NumShreds()*NumShreds(); ++i)
 		shreds[i]->ShineAll();
 
-	emit UpdatedAll();
 	emit ReConnect();
 }
 

@@ -8,15 +8,22 @@ uniform float saturation= 1.0;
 uniform float time;
 uniform vec3 inv_screen_size= vec3( 1.0f/ 1024.0, 1.0f/768.0, 0.0 );
 
+uniform float inv_max_view_distance= 0.03125;//for underwater fog
+uniform vec3 underwater_fog_color=10.0 * vec3( 72.0/255.0, 108.0/255.0, 169.0/255.0 );
+
 //const float eps= 0.5f;
-const float eps= 0.5f;
+const float eps= 0.25;
 in vec2 f_tex_coord;
+in vec2 f_screen_coord;
 
 out vec4 color;
 
+uniform vec3 depth_convert_k;
+
+
 float GetFragLinearDepth( vec2 tc )
 {
-    return 1.0f / ( texture( depth_buffer, tc).x * 2.0 - 1.0 - 1.0004884 );
+    return depth_convert_k.x / ( texture( depth_buffer , tc ).x + depth_convert_k.y );
 }
 
 vec3 ToneMapping( vec3 c )
@@ -137,15 +144,15 @@ vec3 Soap()//"Ìûכüצמ" like on PS3
    //lense effect
    // tc2= tc2 * 2.0 - vec2( 1.0, 1.0 );
    // tc2= 0.5 * 0.25 * tc2 * ( vec2( 3.0, 3.0 ) + abs( tc2 ) ) + vec2( 0.5, 0.5 );
-    
-    tc2.x+= 2.0 * inv_screen_size.x * sin( f_tex_coord.y * 20.0 + time * 2.0 );
-    tc2.y+=  2.0 * inv_screen_size.y * sin( f_tex_coord.x * 20.0 + time * 2.0 );
+
+    //tc2.x+= 2.0 * inv_screen_size.x * sin( f_tex_coord.y * 20.0 + time * 2.0 );
+    //tc2.y+=  2.0 * inv_screen_size.y * sin( f_tex_coord.x * 20.0 + time * 2.0 );
 
     tc= tc2;
-
+#ifdef SOAP
     tc.x-= 2.0f * inv_screen_size.x;
 
-    c+= texture( scene_buffer, tc ).xyz * 0.1;
+    c= texture( scene_buffer, tc ).xyz * 0.1;
 
     tc.x+=inv_screen_size.x;
     c+= texture( scene_buffer, tc ).xyz * 0.15;
@@ -165,12 +172,14 @@ vec3 Soap()//"Ìûכüצמ" like on PS3
 
     tc.x-= 2.0 * inv_screen_size.y;
     c+= texture( scene_buffer, tc ).xyz * 0.125;
+#else
+   c= texture( scene_buffer, tc2 ).xyz;
+#endif
+	float depth=  length( vec3( f_screen_coord, 1.0 ) ) * GetFragLinearDepth( tc2 );
+	return ToneMapping( mix( c, underwater_fog_color, clamp( depth * inv_max_view_distance, 0.0, 1.0 ) )  );
+    //return ToneMapping( mix( c, underwater_fog_color, clamp( GetFragLinearDepth( tc2 ) * inv_max_view_distance, 0.0, 1.0 ) )  );
 
-
-    //c= texture( scene_buffer, f_tex_coord ).xyz;
-    c*= vec3( 0.6f, 0.6f, 0.8f );
-    return ToneMapping(c);
-
+    //return mix( ToneMapping(c), vec3( 72.0/255.0, 108.0/255.0, 169.0/255.0 ), clamp( -GetFragLinearDepth( tc2 ) * 0.03125, 0.0, 1.0 ) );
 }
 
 void main()

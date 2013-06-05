@@ -43,6 +43,7 @@
 			case H_MEAT:     return str="Not animal meat";
 			case IRON:       return str="Iron block";
 			case SAND:       return str="Sandstone";
+			case CLAY:       return str="Clay brick";
 			default:
 				fprintf(stderr,
 					"Block::FullName: unlisted sub: %d.\n",
@@ -165,13 +166,6 @@
 	}
 
 	void Block::ReceiveSignal(const QString &) {}
-
-	bool Block::CanBeOut() const {
-		switch (sub) {
-			case HAZELNUT: return false;
-			default: return true;
-		}
-	}
 
 	void Block::Inscribe(const QString & str) { *note=str; }
 
@@ -305,7 +299,7 @@
 				fprintf(stderr,
 					"Weapon::FullName: unlisted sub: %d\n",
 					Sub());
-			return str="Some weapon";
+				return str="Some weapon";
 		}
 	}
 
@@ -384,12 +378,12 @@
 
 //Active::
 	QString & Active::FullName(QString & str) const {
-		switch (sub) {
-			case SAND: return str="Sand";
+		switch ( Sub() ) {
+			case SAND:  return str="Sand";
+			case WATER: return str="Snow";
 			default:
 				fprintf(stderr,
-					"Active:FullName(QString&): \
-					Unlisted sub: %d\n",
+					"Active::FullName: Unlisted sub: %d\n",
 					sub);
 				return str="Unkown active block";
 		}
@@ -670,33 +664,37 @@
 
 	ushort Inventory::Size() const { return size; }
 
-	int Inventory::Drop(const ushort num, Inventory * const inv_to) {
-		if ( !inv_to )
-			return 1;
-		if ( num>=Size() )
-			return 6;
-		if ( inventory[num].isEmpty() )
-			return 6;
-		if ( !inv_to->Get(inventory[num].top()) )
-			return 2;
-		Pull(num);
-		return 0;
+	bool Inventory::Drop(const ushort src, ushort dest,
+			const ushort num,
+			Inventory * const inv_to)
+	{
+		if ( dest<inv_to->Start() ) {
+			dest=inv_to->Start();
+		}
+		bool ok_flag=false;
+		for (ushort i=0; i<num; ++i) {
+			if ( inv_to &&
+					src<Size() &&
+					dest<inv_to->Size() &&
+					!inventory[src].isEmpty() &&
+					inv_to->Get(inventory[src].top(), dest) )
+			{
+				ok_flag=true;
+			}
+			Pull(src);
+		}
+		return ok_flag;
 	}
 
-	int Inventory::GetAll(Inventory * const from) {
-		if ( !from )
-			return 1;
-		if ( !from->Access() )
-			return 2;
-
-		for (ushort i=0; i<from->Size(); ++i)
-			while ( from->Number(i) )
-				if ( from->Drop(i, this) )
-					return 3;
-		return 0;
+	bool Inventory::GetAll(Inventory * const from) {
+		if ( !from || !from->Access() ) {
+			return false;
+		}
+		for (ushort i=0; i<from->Size(); ++i) {
+			from->Drop(i, 0, from->Number(i), this);
+		}
+		return true;
 	}
-
-	usage_types Inventory::Use() { return OPEN; }
 
 	void Inventory::Pull(const ushort num) {
 		if ( !inventory[num].isEmpty() )
@@ -711,13 +709,18 @@
 		}
 	}
 
-	bool Inventory::Get(Block * const block) {
-		if ( !block )
+	bool Inventory::Get(Block * const block, ushort start) {
+		if ( start<Start() ) {
+			start=Start();
+		}
+		if ( !block ) {
 			return true;
-
-		for (ushort i=Start(); i<Size(); ++i)
-			if ( GetExact(block, i) )
+		}
+		for (ushort i=start; i<Size(); ++i) {
+			if ( GetExact(block, i) ) {
 				return true;
+			}
+		}
 		return false;
 	}
 
@@ -735,13 +738,13 @@
 		return false;
 	}
 
-	bool Inventory::MoveInside(const ushort num_from, const ushort num_to)
+	void Inventory::MoveInside(const ushort num_from, const ushort num_to,
+			const ushort num)
 	{
-		if ( GetExact(ShowBlock(num_from), num_to) ) {
-			Pull(num_from);
-			return true;
-		} else {
-			return false;
+		for (ushort i=0; i<num; ++i) {
+			if ( GetExact(ShowBlock(num_from), num_to) ) {
+				Pull(num_from);
+			}
 		}
 	}
 
@@ -805,22 +808,21 @@
 			0 : inventory[num].top();
 	}
 
-	bool Inventory::HasRoom() {
+	bool Inventory::IsEmpty() const {
+		for (ushort i=Start(); i<Size(); ++i) {
+			if ( !inventory[i].isEmpty() ) {
+				return false;
+			}
+		}
+		return true;
+	}
+	bool Inventory::HasRoom() const {
 		for (ushort i=Start(); i<Size(); ++i) {
 			if ( inventory[i].isEmpty() ) {
 				return true;
 			}
 		}
 		return false;
-	}
-
-	bool Inventory::IsEmpty() {
-		for (ushort i=0; i<Size(); ++i) {
-			if ( !inventory[i].isEmpty() ) {
-				return false;
-			}
-		}
-		return true;
 	}
 
 	void Inventory::BeforePush(Block * const who) {
@@ -926,7 +928,7 @@
 		return str="Dwarf " + *note;
 	}
 
-	ushort Dwarf::Start() const { return 5; }
+	ushort Dwarf::Start() const { return onLegs+1; }
 
 	int Dwarf::DamageKind() const {
 		if ( Number(inRight) ) {
@@ -940,10 +942,12 @@
 
 	ushort Dwarf::DamageLevel() const {
 		ushort level=1;
-		if ( Number(inRight) )
+		if ( Number(inRight) ) {
 			level+=ShowBlock(inRight)->DamageLevel();
-		if ( Number(inLeft) )
-			level+=ShowBlock(inRight)->DamageLevel();
+		}
+		if ( Number(inLeft) ) {
+			level+=ShowBlock(inLeft)->DamageLevel();
+		}
 		return level;
 	}
 
@@ -968,24 +972,23 @@
 
 	bool Dwarf::Access() const { return false; }
 
-	bool Dwarf::MoveInside(ushort num_from, ushort num_to) {
-		Block *  const block=ShowBlock(num_from);
-		if  ( !block ) {
-			return true;
-		} else if ( num_to > onLegs ||
+	void Dwarf::MoveInside(const ushort num_from, const ushort num_to,
+			const ushort num)
+
+	{
+		Block * const block=ShowBlock(num_from);
+		if ( block && (num_to > onLegs ||
 				inRight==num_to || inLeft==num_to ||
 				( onHead==num_to &&
 					WEARABLE_HEAD==block->Wearable() ) ||
 				( onBody==num_to &&
 					WEARABLE_BODY==block->Wearable() ) ||
 				( onLegs==num_to &&
-					WEARABLE_LEGS==block->Wearable() ) )
+					WEARABLE_LEGS==block->Wearable() )) )
 		{
-			GetExact(block, num_to);
-			Pull(num_from);
-			return true;
-		} else {
-			return false;
+			for (ushort i=0; i<num; ++i) {
+				Inventory::MoveInside(num_from, num_to, 1);
+			}
 		}
 	}
 
@@ -1014,7 +1017,7 @@
 
 //Chest::
 	Block * Chest::DropAfterDamage() const {
-		return block_manager.NewBlock(CHEST, sub);
+		return block_manager.NewBlock(Kind(), Sub());
 	}
 
 	int Chest::Kind() const { return CHEST; }
@@ -1037,7 +1040,7 @@
 		return Inventory::HasInventory();
 	}
 
-	usage_types Chest::Use() { return Inventory::Use(); }
+	usage_types Chest::Use() { return OPEN; }
 
 	int Chest::BeforePush(const int, Block * const who) {
 		Inventory::BeforePush(who);
@@ -1052,14 +1055,14 @@
 		Inventory::SaveAttributes(out);
 	}
 
-	Chest::Chest(const int s) :
+	Chest::Chest(const int s, const ushort size) :
 			Block(s),
-			Inventory()
+			Inventory(size)
 	{}
 
-	Chest::Chest(QDataStream & str, const int sub) :
+	Chest::Chest(QDataStream & str, const int sub, const ushort size) :
 			Block(str, sub),
-			Inventory(str)
+			Inventory(str, size)
 	{}
 
 //Pile::
@@ -1082,7 +1085,6 @@
 	QString & Pile::FullName(QString & str) const {
 		switch ( Sub() ) {
 			case DIFFERENT: return str=tr("Pile");
-			case WATER:     return str=tr("Snow");
 			default:
 				fprintf(stderr,
 					"Pile::FullName: unlisted sub: %d\n",
@@ -1093,22 +1095,21 @@
 
 	Inventory * Pile::HasInventory() { return Inventory::HasInventory(); }
 
-	usage_types Pile::Use() { return Inventory::Use(); }
+	usage_types Pile::Use() { return OPEN; }
 
-	ushort Pile::Weight() const {
-		return Inventory::Weight() +
-			(( WATER==Sub() ) ? Block::Weight() : 0);
-	}
+	ushort Pile::Weight() const { return Inventory::Weight(); }
 
-	int Pile::Drop(const ushort n, Inventory * const inv) {
-		const int ret=Inventory::Drop(n, inv);
-		ifToDestroy=( WATER==Sub() ) ? false : IsEmpty();
+	bool Pile::Drop(const ushort src, const ushort dest, const ushort num,
+			Inventory * const inv)
+	{
+		const bool ret=Inventory::Drop(src, dest, num, inv);
+		ifToDestroy=IsEmpty();
 		return ret;
 	}
 
 	void Pile::Pull(const ushort num) {
 		Inventory::Pull(num);
-		ifToDestroy=( WATER==Sub() ) ? false : IsEmpty();
+		ifToDestroy=IsEmpty();
 	}
 
 	void Pile::SaveAttributes(QDataStream & out) const {
@@ -1119,13 +1120,13 @@
 
 	Pile::Pile(const int sub) :
 			Active(sub, NONSTANDARD),
-			Inventory((WATER==sub) ? snow_inv_size : inv_size),
+			Inventory(inv_size),
 			ifToDestroy(false)
 	{}
 
 	Pile::Pile(QDataStream & str, const int sub) :
 			Active(str, sub, NONSTANDARD),
-			Inventory(str, (WATER==sub) ? snow_inv_size : inv_size)
+			Inventory(str, inv_size)
 	{
 		str >> ifToDestroy;
 	}
@@ -1263,7 +1264,7 @@
 
 	int Bush::Sub() const { return Block::Sub(); }
 
-	usage_types Bush::Use() { return Inventory::Use(); }
+	usage_types Bush::Use() { return OPEN; }
 
 	Inventory * Bush::HasInventory() { return Inventory::HasInventory(); }
 
@@ -1307,76 +1308,23 @@
 	{}
 
 //Rabbit::
-	float Rabbit::Attractive(int kind) const {
-		switch ( kind ) {
-			case DWARF: return -9;
-			case GRASS: return 0.1f;
-			case RABBIT: return 0.8f;
+	short Rabbit::Attractive(const int sub) const {
+		switch ( sub ) {
+			case H_MEAT: return -8;
+			case A_MEAT: return -1;
+			case GREENERY: return 1;
+			case SAND: return -1;
 			default: return 0;
 		}
 	}
 
 	void Rabbit::ActFrequent() {
 		World * const world=GetWorld();
-		float for_north=0, for_west=0;
-		ushort x, y, z;
-		int kind;
-		for (x=x_self-6; x<=x_self+6; ++x)
-		for (y=y_self-6; y<=y_self+6; ++y)
-		for (z=z_self-6; z<=z_self+6; ++z) {
-			if ( InBounds(x, y, z) ) {
-				kind=world->Kind(x, y, z);
-				if ( (
-						GRASS==kind ||
-						RABBIT==kind ||
-						DWARF==kind) &&
-						world->DirectlyVisible(
-							x_self,
-							y_self,
-							z_self, x, y, z) )
-				{
-					if ( y!=y_self ) {
-						for_north+=Attractive(kind)/
-							(y_self-y);
-					}
-					if ( x!=x_self ) {
-						for_west +=Attractive(kind)/
-							(x_self-x);
-					}
-				}
-			}
-		}
-		if ( abs(for_north)>1 || abs(for_west)>1 ) {
-			SetDir( ( abs(for_north)>abs(for_west) ) ?
-				( ( for_north>0 ) ? NORTH : SOUTH ) :
-				( ( for_west >0 ) ? WEST  : EAST  ) );
-			if ( qrand()%2 ) {
-				world->Move(x_self, y_self, z_self, direction);
-			} else {
-				world->Jump(x_self, y_self, z_self);
-			}
-		} else switch ( qrand()%60 ) {
-			case 0:
-				SetDir(NORTH);
-				world->Move(x_self, y_self, z_self, NORTH);
-			break;
-			case 1:
-				SetDir(SOUTH);
-				world->Move(x_self, y_self, z_self, SOUTH);
-			break;
-			case 2:
-				SetDir(EAST);
-				world->Move(x_self, y_self, z_self, EAST);
-			break;
-			case 3:
-				SetDir(WEST);
-				world->Move(x_self, y_self, z_self, WEST);
-			break;
-		}
+		//eat sometimes
 		if ( SECONDS_IN_DAY/2 > satiation ) {
-			for (x=x_self-1; x<=x_self+1; ++x)
-			for (y=y_self-1; y<=y_self+1; ++y)
-			for (z=z_self-1; z<=z_self+1; ++z)
+			for (ushort x=x_self-1; x<=x_self+1; ++x)
+			for (ushort y=y_self-1; y<=y_self+1; ++y)
+			for (ushort z=z_self-1; z<=z_self+1; ++z) {
 				if ( InBounds(x, y) &&
 						GREENERY==world->Sub(x, y, z) )
 				{
@@ -1384,6 +1332,52 @@
 						x, y, z);
 					return;
 				}
+			}
+		}
+		//analyse world around
+		short for_north=0, for_west=0;
+		for (ushort x=x_self-4; x<=x_self+4; ++x)
+		for (ushort y=y_self-4; y<=y_self+4; ++y)
+		for (ushort z=z_self-1; z<=z_self+3; ++z) {
+			if ( InBounds(x, y, z) ) {
+				const short attractive=
+					Attractive(world->Sub(x, y, z));
+				if ( attractive &&
+						world->DirectlyVisible(
+							x_self, y_self,	z_self,
+							x, y, z) )
+				{
+					if ( y!=y_self ) {
+						for_north+=attractive/
+							(y_self-y);
+					}
+					if ( x!=x_self ) {
+						for_west +=attractive/
+							(x_self-x);
+					}
+				}
+			}
+		}
+		//make direction and move there
+		const ushort calmness=5;
+		if ( qAbs(for_north)>calmness || qAbs(for_west)>calmness ) {
+			SetDir( ( qAbs(for_north)>qAbs(for_west) ) ?
+				( ( for_north>0 ) ? NORTH : SOUTH ) :
+				( ( for_west >0 ) ? WEST  : EAST  ) );
+			if ( qrand()%2 ) {
+				world->Move(x_self, y_self, z_self, direction);
+			} else {
+				world->Jump(x_self, y_self, z_self);
+			}
+		} else {
+			switch ( qrand()%60 ) {
+				case 0: SetDir(NORTH); break;
+				case 1: SetDir(SOUTH); break;
+				case 2: SetDir(EAST);  break;
+				case 3: SetDir(WEST);  break;
+				default: return;
+			}
+			world->Move(x_self, y_self, z_self, GetDir());
 		}
 	}
 	int Rabbit::ShouldAct() const { return FREQUENT_AND_RARE; }
@@ -1418,10 +1412,6 @@
 	{}
 
 //Workbench::
-	Block * Workbench::DropAfterDamage() const {
-		return block_manager.NewBlock(WORKBENCH, Sub());
-	}
-
 	void Workbench::Craft() {
 		while ( Number(0) ) { //remove previous product
 			Block * const to_push=ShowBlock(0);
@@ -1449,32 +1439,42 @@
 		}
 	}
 
-	int Workbench::Drop(const ushort num, Inventory * const inv_to) {
-		if ( !inv_to )
-			return 1;
-		if ( num>=Size() )
-			return 6;
-		if ( !Number(num) )
-			return 6;
-		if ( num==0 ) {
+	bool Workbench::Drop(const ushort src, const ushort dest,
+			const ushort num,
+			Inventory * const inv_to)
+	{
+		if ( !inv_to ||
+				src>=Size() || dest>=inv_to->Size() ||
+				!Number(src) )
+		{
+			return false;
+		}
+		if ( src==0 ) {
 			while ( Number(0) ) {
-				if ( !inv_to->Get(ShowBlock(0)) )
-					return 2;
+				if ( !inv_to->Get(ShowBlock(0)) ) {
+					return false;
+				}
 				Pull(0);
 			}
-			for (ushort i=Start(); i<Size(); ++i)
+			for (ushort i=Start(); i<Size(); ++i) {
 				while ( Number(i) ) {
 					Block * const to_pull=ShowBlock(i);
 					Pull(i);
 					block_manager.DeleteBlock(to_pull);
 				}
+			}
+			return true;
 		} else {
-			if ( !inv_to->Get(ShowBlock(num)) )
-				return 2;
-			Pull(num);
-			Craft();
+			bool ok_flag=false;
+			for (ushort i=0; i<num; ++i) {
+				if ( inv_to->Get(ShowBlock(src), dest) ) {
+					ok_flag=true;
+				}
+				Pull(src);
+				Craft();
+			}
+			return ok_flag;
 		}
-		return 0;
 	}
 
 	QString & Workbench::FullName(QString & str) const {
@@ -1491,48 +1491,33 @@
 
 	int Workbench::Kind() const { return WORKBENCH; }
 
-	ushort Workbench::Weight() const { return Block::Weight()*4; }
-
-	usage_types Workbench::Use() { return OPEN; }
-
-	Inventory * Workbench::HasInventory() {
-		return Inventory::HasInventory();
-	}
-
-	int Workbench::Sub() const { return Block::Sub(); }
-
 	ushort Workbench::Start() const { return 1; }
 
-	bool Workbench::Get(Block * const block) {
-		if ( Inventory::Get(block) ) {
+	bool Workbench::Get(Block * const block, const ushort start) {
+		if ( Inventory::Get(block, start) ) {
 			Craft();
 			return true;
+		} else {
+			return false;
 		}
-		return false;
 	}
 
-	int Workbench::GetAll(Inventory * const from) {
-		const int err=Inventory::GetAll(from);
-		if ( !err ) {
+	bool Workbench::GetAll(Inventory * const from) {
+		if ( Inventory::GetAll(from) ) {
 			Craft();
-			return 0;
-		} else
-			return err;
-	}
-
-	void Workbench::SaveAttributes(QDataStream & out) const {
-		Inventory::SaveAttributes(out);
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	Workbench::Workbench(const int sub) :
-			Block(sub),
-			Inventory(workbench_size)
-	{transparent= NONSTANDARD;}
+			Chest(sub, workbench_size)
+	{}
 
 	Workbench::Workbench(QDataStream & str, const int sub) :
-			Block(str, sub),
-			Inventory(str, workbench_size)
-	{transparent= NONSTANDARD;}
+			Chest(str, sub, workbench_size)
+	{}
 
 //Door::
 	Block * Door::DropAfterDamage() const {

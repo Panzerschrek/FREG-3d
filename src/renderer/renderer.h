@@ -143,6 +143,8 @@ public:
 
     r_Renderer( World* w,Player* p, int width, int height );
     void Initialize();
+    void LoadShaders();
+    void SetupFrameBuffers();
     void ShutDown();
 
     void UpdateBlock( short x, short y, short z );
@@ -181,6 +183,7 @@ private:
     void DrawMap();
     void DrawSun();
     void DrawWater();
+    void CopyDepthBuffer();
     void DrawBuildCube();
     void DrawInventory();
     void LoadTextures();
@@ -307,6 +310,7 @@ private:
     float scene_brightness;
     r_GLSLProgram postprocess_shader, brightness_shader;
     r_GLSLProgram underwater_postprocess_shader;
+    GLuint scene_depth_buffer;//scene buffer before water drawing
     bool underwater;
 
     r_FrameBuffer bloom_buffer[2];

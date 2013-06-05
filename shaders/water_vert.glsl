@@ -26,26 +26,27 @@ uniform mat4 proj_mat;
 uniform vec3 cam_pos;
 uniform mat4 shadow_mat;
 
-out vec3 f_tex_coord;
+out vec2 f_tex_coord;
 out vec3 f_normal;
 out float f_light;
 out float fog_k;
 out vec3 f_position;
 out vec3 f_world_position;
+out float f_depth;
 
 
 float Noise()
 {
-	return sin( ( coord.x + time ) * 0.5 * 3.1415926535 ) * 
+	return sin( ( coord.x + time ) * 0.5 * 3.1415926535 ) *
 	sin( ( coord.y + time )* 0.5 * 3.1415926535 ) * 0.1 - 0.15;
 }
 
 void main( void )
 {
- 
-    f_tex_coord.xy= coord.xy * 0.125;
-    f_tex_coord.z= tex_coord.z;
-	
+
+    f_tex_coord= coord.xy * 0.125;
+
+
     vec3 len2= cam_pos - coord;
     fog_k= dot( len2, len2 );
     fog_k= min( 0.25f * fog_k *  max_view2, 1.0f );
@@ -53,7 +54,7 @@ void main( void )
     f_light= fire_ambient_light * light.y + sky_ambient_light * light.x;
     f_light*= block_side_light_k[ normal ];
     f_normal= normals[ normal ];
-    
+
     vec3 m_coord= coord;
     m_coord.z+= Noise();
 
@@ -64,5 +65,7 @@ void main( void )
     f_position+= vec3( 0.5, 0.5, 0.5 );
 
     f_world_position= m_coord;
-    gl_Position= proj_mat * vec4( m_coord, 1.0f );
-}   
+    vec4 final_coord;
+    gl_Position= final_coord= proj_mat * vec4( m_coord, 1.0f );
+    f_depth= final_coord.w;
+}

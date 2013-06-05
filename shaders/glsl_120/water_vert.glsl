@@ -1,11 +1,18 @@
 #version 120
 
+const vec3 normals[6]= vec3[6](
+vec3( 1.0, 0.0, 0.0 ), vec3( -1.0, 0.0, 0.0 ),
+vec3( 0.0, 1.0, 0.0 ), vec3( 0.0, -1.0, 0.0 ),
+vec3( 0.0, 0.0, 1.0 ), vec3( 0.0, 0.0, -1.0 ));
+
 const float block_side_light_k[6]= float[6](
 0.87f, 0.87f, 0.93f, 0.93f, 1.0f, 0.8f );
 
 varying vec2 f_tex_coord;
 varying float f_light;
 varying vec3 f_world_position;
+varying vec3 f_normal;
+varying float f_depth;
 
 uniform mat4 proj_mat;
 uniform float inv_tex_z_size= 1.0/ 32.0;
@@ -30,6 +37,7 @@ float Noise()
 void main( void )
 {
    	int i_normal= int( normal + 0.00001 );
+	f_normal= normals[ i_normal ];
 	f_tex_coord= coord.xy * 0.125;
 	f_light= max( sky_ambient_light * light.x + fire_ambient_light * light.y, 0.05 );
 	f_light*= block_side_light_k[ i_normal ];
@@ -38,4 +46,5 @@ void main( void )
 	m_coord.z+= Noise();
 	f_world_position= m_coord;
 	gl_Position= proj_mat * vec4( m_coord, 1.0 );
+	f_depth= gl_Position.w;
 }   

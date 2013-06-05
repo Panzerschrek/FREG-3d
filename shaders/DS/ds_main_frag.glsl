@@ -76,10 +76,10 @@ void main()
  
     //light+= FlashLight(coord, normal );
 
-    #ifndef SMOOUTH_SHADOWS
+    #ifdef SMOOUTH_SHADOWS
     vec2 delta;
     delta= vec2( 0.125, 0.125 ) + abs( shadow_coord.xy );
-    delta= 0.004 * ( 0.125 + 0.125 * 0.125 ) * ( delta * delta );
+    delta= 0.00439453125 * ( 0.125 + 0.125 * 0.125 ) * ( delta * delta );
     float shadow_factor= ( texture( shadow_map, shadow_coord )
 			   + texture( shadow_map, shadow_coord + vec3( delta.x, delta.y, 0.0  ) )
 			   + texture( shadow_map, shadow_coord + vec3( -delta.x, delta.y, 0.0 ) )

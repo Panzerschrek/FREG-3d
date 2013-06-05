@@ -22,6 +22,7 @@
 #include <QReadWriteLock>
 #include <QThread>
 #include <QByteArray>
+#include <QSettings>
 #include "header.h"
 
 class QTextStream;
@@ -89,6 +90,9 @@ class World : public QThread {
 
 	uchar sunMoonFactor;
 
+	QSettings settings;
+	QSettings game_settings;
+
 	void ReplaceWithNormal(ushort x, ushort y, ushort z);
 	Block * ReplaceWithNormal(Block * block);
 	void MakeSun();
@@ -103,6 +107,7 @@ class World : public QThread {
 	public:
 	Block * GetBlock(ushort x, ushort y, ushort z) const;
 	Shred * GetShred(ushort i, ushort j) const;
+	private:
 	///Puts block to coordinates xyz and activates it.
 	void SetBlock(Block * block, ushort x, ushort y, ushort z);
 	///Puts block to coordinates and not activates it.
@@ -135,13 +140,13 @@ class World : public QThread {
 	//information section
 	public:
 	QString WorldName() const;
-	int Focus(
-			ushort, ushort, ushort,
-			ushort &,  ushort &, ushort &,
+	int Focus(ushort x, ushort y, ushort z,
+			ushort & x_targ, ushort & y_targ, ushort & z_targ,
 			quint8 dir) const;
-	int Focus(
-			ushort, ushort, ushort,
-			ushort &, ushort &, ushort &) const;
+	int Focus(ushort x, ushort y, ushort z,
+			ushort & x_targ,
+			ushort & y_targ,
+			ushort & z_targ) const;
 	ushort NumShreds() const;
 	ushort NumActiveShreds() const;
 	static quint8 TurnRight(quint8 dir);
@@ -168,14 +173,14 @@ class World : public QThread {
 	public:
 	bool DirectlyVisible(
 			float x_from, float y_from, float z_from,
-			ushort x_to, ushort y_to, ushort z_to) const;
+			ushort x_to,  ushort y_to,  ushort z_to) const;
 	bool Visible(
 			ushort x_from, ushort y_from, ushort z_from,
 			ushort x_to,   ushort y_to,   ushort z_to) const;
 	private:
 	bool PositiveVisible(
-			float  x_from, float y_from, float z_from,
-			ushort x_to, ushort y_to, ushort z_to) const;
+			float  x_from, float  y_from, float  z_from,
+			ushort x_to,   ushort y_to,   ushort z_to) const;
 	bool NegativeVisible(
 			float x_from, float y_from, float z_from,
 			short x_to,   short y_to,   short z_to) const;
@@ -186,11 +191,11 @@ class World : public QThread {
 	int Move(ushort x, ushort y, ushort z, quint8 dir);
 	///This CAN move blocks, but not xyz block.
 	int CanMove(
-		ushort x, ushort y, ushort z,
+		ushort x,    ushort y,    ushort z,
 		ushort x_to, ushort y_to, ushort z_to,
 		quint8 dir);
 	void NoCheckMove(
-		ushort x, ushort y, ushort z,
+		ushort x,    ushort y,    ushort z,
 		ushort x_to, ushort y_to, ushort z_to,
 		quint8 dir);
 	void Jump(ushort x, ushort y, ushort z);
@@ -201,19 +206,12 @@ class World : public QThread {
 	 * If several actions are set during one physics turn,
 	 * only the last will be done.
 	 */
-	void SetDeferredAction(
-			ushort x,
-			ushort y,
-			ushort z,
+	void SetDeferredAction(ushort x, ushort y, ushort z,
 			quint8 dir,
 			int action,
-			ushort x_from=0,
-			ushort y_from=0,
-			ushort z_from=0,
-			Block * what=0,
-			Block * who=0,
-			int data1=0,
-			int data2=0);
+			ushort x_from=0, ushort y_from=0, ushort z_from=0,
+			Block * what=0, Block * who=0,
+			int data1=0, int data2=0);
 
 	//time section
 	public:
@@ -225,29 +223,30 @@ class World : public QThread {
 
 	//interactions section
 	public:
-	bool Damage(
-			ushort x, ushort y, ushort z,
+	bool Damage(ushort x, ushort y, ushort z,
 			ushort level=1, int dmg_kind=CRUSH);
 	int Use(ushort x, ushort y, ushort z);
-	int Build(
-			Block * thing,
+	int Build(Block * thing,
 			ushort x, ushort y, ushort z,
 			quint8 dir=UP,
-			Block * who=0);
+			Block * who=0,
+			bool anyway=false);
 	void Inscribe(ushort x, ushort y, ushort z);
-	void Eat(
-			ushort i, ushort j, ushort k,
+	void Eat(ushort i, ushort j, ushort k,
 			ushort i_food, ushort j_food, ushort k_food);
 
 	//inventory functions section
 	private:
-	int Exchange(
+	void Exchange(
 			ushort i_from, ushort j_from, ushort k_from,
 			ushort i_to,   ushort j_to,   ushort k_to,
-			ushort n);
+			ushort src, ushort dest,
+			ushort num);
 	public:
-	int Drop(ushort i, ushort j, ushort k, ushort n);
-	int Get( ushort i, ushort j, ushort k, ushort n);
+	void Drop(ushort x, ushort y, ushort z,
+			ushort src, ushort dest, ushort num);
+	void Get(ushort x, ushort y, ushort z,
+			ushort src, ushort dest, ushort num);
 	int GetAll(ushort x_to, ushort y_to, ushort z_to);
 
 	//block information section
@@ -268,8 +267,7 @@ class World : public QThread {
 	QString & GetNote(QString &, ushort x, ushort y, ushort z) const;
 	int Temperature(ushort x, ushort y, ushort z) const;
 
-	void ReloadAllShreds(
-		long lati, long longi,
+	void ReloadAllShreds(long lati, long longi,
 		ushort new_x, ushort new_y, ushort new_z,
 		ushort new_num_shreds);
 	void SetNumActiveShreds(ushort num);
@@ -299,9 +297,7 @@ class World : public QThread {
 	void GetString(QString &) const;
 	void Updated(ushort, ushort, ushort);
 	void UpdatedAll();
-	void UpdatedAround(
-			ushort, ushort, ushort,
-			ushort level);
+	void UpdatedAround(ushort x, ushort y, ushort z, ushort level);
 	///Emitted when world active zone moved to int direction.
 	void Moved(int);
 	void ReConnect();

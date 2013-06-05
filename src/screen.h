@@ -109,6 +109,7 @@ private slots:
     void Print();
 
 public slots:
+	void PlayerMoved( long x, long y, ushort z );
     void Notify(const QString&);
     void CleanAll();
     QString& PassString(QString &) const;
@@ -121,13 +122,13 @@ public slots:
     {
         renderer->MoveMap(dir);
     }
+    void UpdatePlayer(){}
     void UpdateAround() {}
     void UpdateAround(
         const ushort,
         const ushort,
         const ushort,
         const ushort range);
-    void UpdatePlayer() {};
     void Flushinp()
     {
         /*flushinp();*/
@@ -174,7 +175,7 @@ public:
     void InputTick();
 private:
 
-    m_Vec3 cam_pos, cam_ang, build_pos;
+    m_Vec3 cam_pos, cam_ang, build_pos, player_global_pos;
     short build_x, build_y, build_z;
     bool free_look;
     float cam_lag;

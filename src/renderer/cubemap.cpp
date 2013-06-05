@@ -99,6 +99,8 @@ int r_CubeMap::MoveOnGPU()
         glTexParameteri ( GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
         glTexParameteri ( GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE );
 
+		glTexParameteri( GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, filtration_min );
+    	glTexParameteri( GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, filtration_mag );
 
 
 		#ifdef OGL21//ogl 2.1 mipmaps autogeneration
@@ -125,10 +127,13 @@ int r_CubeMap::MoveOnGPU()
 
 void r_CubeMap::SetFiltration( GLuint min, GLuint mag )
 {
+	filtration_min= min;
+	filtration_mag= mag;
+	if( created )
+	{
     glTexParameteri( GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, min );
     glTexParameteri( GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, mag );
-	filtration_min= min;
-filtration_mag= mag;
+	}
 }
 
 void r_CubeMap::DeleteFromGPU()

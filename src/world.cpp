@@ -18,7 +18,6 @@
 #include <QFile>
 #include <QTextStream>
 #include <QTimer>
-#include <QSettings>
 #include <QDir>
 #include "header.h"
 #include "blocks.h"
@@ -85,22 +84,26 @@ int World::TimeOfDay() const { return time % SECONDS_IN_DAY; }
 ulong World::Time() const { return time; }
 ushort World::MiniTime() const { return timeStep; }
 
-int World::Drop(
-		const ushort i, const ushort j,	const ushort k,
-		const ushort n)
+void World::Drop(
+		const ushort x, const ushort y,	const ushort z,
+		const ushort src, const ushort dest,
+		const ushort num)
 {
 	ushort i_to, j_to, k_to;
-	return ( Focus(i, j, k, i_to, j_to, k_to) ) ?
-		5 : Exchange(i, j, k, i_to, j_to, k_to, n);
+	if ( !Focus(x, y, z, i_to, j_to, k_to) ) {
+		Exchange(x, y, z, i_to, j_to, k_to, src, dest, num);
+	}
 }
 
-int World::Get(
-		const ushort i, const ushort j, const ushort k,
-		const ushort n)
+void World::Get(
+		const ushort x, const ushort y, const ushort z,
+		const ushort src, const ushort dest,
+		const ushort num)
 {
 	ushort i_from, j_from, k_from;
-	return ( Focus(i, j, k, i_from, j_from, k_from) ) ? 5 :
-		Exchange(i_from, j_from, k_from, i, j, k, n);
+	if ( !Focus(x, y, z, i_from, j_from, k_from) ) {
+		Exchange(i_from, j_from, k_from, x, y, z, src, dest, num);
+	}
 }
 
 bool World::InBounds(const ushort i, const ushort j, const ushort k) const {
@@ -234,7 +237,7 @@ Block * World::ReplaceWithNormal(Block * const block) {
 			*block==*Normal(block->Sub(), block->GetDir()) )
 	{
 		const int sub=block->Sub();
-		block_manager.DeleteBlock(block);
+		DeleteBlock(block);
 		return Normal(sub);
 	} else {
 		return block;
@@ -266,7 +269,7 @@ void World::ReloadShreds(const int direction) {
 	RemSun();
 	switch ( direction ) {
 		case NORTH:
-			//--longitude;
+			--longitude;
 			for (x=0; x<numShreds; ++x) {
 				delete shreds[numShreds*(numShreds-1)+x];
 				for (y=numShreds-2; y>=0; --y) {
@@ -275,13 +278,12 @@ void World::ReloadShreds(const int direction) {
 						ReloadToNorth();
 				}
 				shreds[x]=new Shred(this, x, 0,
-						longitude-1-numShreds/2,
+						longitude-numShreds/2,
 						latitude-numShreds/2+x);
 			}
-			--longitude;
 		break;
 		case SOUTH:
-			//++longitude;
+			++longitude;
 			for (x=0; x<numShreds; ++x) {
 				delete shreds[x];
 				for (y=1; y<numShreds; ++y) {
@@ -291,13 +293,12 @@ void World::ReloadShreds(const int direction) {
 				}
 				shreds[numShreds*(numShreds-1)+x]=new
 					Shred(this, x, numShreds-1,
-						longitude+1+numShreds/2,
+						longitude+numShreds/2,
 						latitude-numShreds/2+x);
 			}
-			++longitude;
 		break;
 		case EAST:
-			//++latitude;
+			++latitude;
 			for (y=0; y<numShreds; ++y) {
 				delete shreds[y*numShreds];
 				for (x=1; x<numShreds; ++x) {
@@ -308,12 +309,11 @@ void World::ReloadShreds(const int direction) {
 				shreds[numShreds-1+y*numShreds]=new
 					Shred(this, numShreds-1, y,
 						longitude-numShreds/2+y,
-						latitude+1+numShreds/2);
+						latitude+numShreds/2);
 			}
-			++latitude;
 		break;
 		case WEST:
-			//--latitude;
+			--latitude;
 			for (y=0; y<numShreds; ++y) {
 				delete shreds[numShreds-1+y*numShreds];
 				for (x=numShreds-2; x>=0; --x) {
@@ -323,9 +323,8 @@ void World::ReloadShreds(const int direction) {
 				}
 				shreds[y*numShreds]=new Shred(this, 0, y,
 						longitude-numShreds/2+y,
-						latitude-1-numShreds/2);
+						latitude-numShreds/2);
 			}
-			--latitude;
 		break;
 		default: fprintf(stderr,
 			"World::ReloadShreds(int): invalid direction: %d\n",
@@ -338,7 +337,6 @@ void World::ReloadShreds(const int direction) {
 
 void World::PhysEvents() {
 	WriteLock();
-
 	if ( DEFERRED_NOTHING!=deferredActionType ) {
 		switch ( deferredActionType ) {
 			case DEFERRED_MOVE:
@@ -413,19 +411,17 @@ void World::PhysEvents() {
 				}
 			break;
 			case DEFERRED_THROW:
-				if ( !Drop(
+				Drop(
 						deferredActionXFrom,
 						deferredActionYFrom,
 						deferredActionZFrom,
-						deferredActionData1) )
-				{
-					//send message to dropper
-				}
+						deferredActionData1, //src
+						deferredActionData2, //dest
+						deferredActionX /* num */);
 			break;
 			default:
 				fprintf(stderr,
-					"World::PhysEvents: \
-					unlisted deferred_action: %d\n",
+					"World::PhysEvents: (?) action: %d\n",
 					deferredActionType);
 		}
 		deferredActionType=DEFERRED_NOTHING;
@@ -439,6 +435,7 @@ void World::PhysEvents() {
 		toReSet=false;
 		LoadAllShreds();
 		emit NeedPlayer(newX, newY, newZ);
+		emit UpdatedAll();
 		emit FinishReloadAll();
 	}
 	/*static ulong global_step=0;
@@ -463,20 +460,16 @@ void World::PhysEvents() {
 	}
 	timeStep=0;
 	++time;
-
 	//sun/moon moving
 	if ( sun_moon_x!=SunMoonX() ) {
 		const ushort y=SHRED_WIDTH*numShreds/2;
-		PutBlock(Normal(ifStar ? STAR : SKY),
-				sun_moon_x, y, HEIGHT-1);
+		PutNormalBlock((ifStar ? STAR : SKY), sun_moon_x, y, HEIGHT-1);
 		emit Updated(sun_moon_x, y, HEIGHT-1);
 		sun_moon_x=SunMoonX();
 		ifStar=( STAR==Sub(sun_moon_x, y, HEIGHT-1) );
-		PutBlock(Normal(SUN_MOON),
-				sun_moon_x, y, HEIGHT-1);
+		PutNormalBlock(SUN_MOON, sun_moon_x, y, HEIGHT-1);
 		emit Updated(sun_moon_x, y, HEIGHT-1);
 	}
-
 	switch ( TimeOfDay() ) {
 		case END_OF_NIGHT:
 			ReEnlightenTime();
@@ -589,7 +582,10 @@ int World::Move(
 {
 	ushort newi, newj, newk;
 	if ( !Focus(i, j, k, newi, newj, newk, dir) &&
-			CanMove(i, j, k, newi, newj, newk, dir) )
+			CanMove(i, j, k, newi, newj, newk, dir) &&
+			(DOWN==dir || !Weight(i, j, k) || !(
+				AIR==Sub(i, j, k-1) &&
+				AIR==Sub(newi, newj, newk-1))) )
 	{
 		NoCheckMove(i, j, k, newi, newj, newk, dir);
 		return 1;
@@ -641,7 +637,6 @@ int World::CanMove(
 		break;
 		default: break;
 	}
-
 	return ( ENVIRONMENT==block_to->Movable() ) ?
 		1 :
 		Move(newi, newj, newk, dir);
@@ -790,7 +785,7 @@ bool World::Damage(
 	} else {
 		PutNormalBlock(AIR, i, j, k);
 	}
-	block_manager.DeleteBlock(temp);
+	DeleteBlock(temp);
 	GetShred(i, j)->AddFalling(i%SHRED_WIDTH, j%SHRED_WIDTH, k+1);
 	ReEnlighten(i, j, k);
 	return true;
@@ -805,25 +800,22 @@ int World::Use(const ushort i, const ushort j, const ushort k) {
 int World::Build(
 		Block * const block,
 		const ushort i, const ushort j, const ushort k,
-		const quint8 dir, Block * const who) //defaults exist
+		const quint8 dir,
+		Block * const who,
+		const bool anyway) //defaults exist
 {
-	if ( !InBounds(i, j, k) || ENVIRONMENT!=Movable(i, j, k)  ) {
+	if ( !InBounds(i, j, k) || (!anyway && ENVIRONMENT!=Movable(i, j, k)) )
+	{
 		if ( who ) {
 			who->ReceiveSignal(tr("Cannot build here."));
 		}
 		return 1;
 	}
-	if ( !block->CanBeOut() ) {
-		if ( who ) {
-			who->ReceiveSignal(tr("Cannot build this."));
-		}
-		return 2;
-	}
+	DeleteBlock(GetBlock(i, j, k));
 	block->Restore();
 	SetBlock(block, i, j, k);
 	ReplaceWithNormal(i, j, k);
-	if ( block!=block_manager.NormalBlock(block->Sub(), block->GetDir()) )
-	{
+	if ( block!=Normal(block->Sub(), block->GetDir()) ) {
 		block->SetDir(dir);
 	}
 
@@ -861,16 +853,17 @@ void World::Eat(
 	}
 }
 
-int World::Exchange(
+void World::Exchange(
 		const ushort i_from, const ushort j_from, const ushort k_from,
 		const ushort i_to,   const ushort j_to,   const ushort k_to,
+		const ushort src, const ushort dest,
 		const ushort num)
 {
 	Inventory * const inv_from=HasInventory(i_from, j_from, k_from);
+	Block * const block_from=GetBlock(i_from, j_from, k_from);
 	if ( !inv_from ) {
-		GetBlock(i_from, j_from, k_from)->
-			ReceiveSignal(tr("No inventory."));
-		return 3;
+		block_from->ReceiveSignal(tr("No inventory."));
+		return;
 	}
 	if ( AIR==Sub(i_to, j_to, k_to) ) {
 		SetBlock(block_manager.NewBlock(PILE, DIFFERENT),
@@ -878,11 +871,14 @@ int World::Exchange(
 	}
 	Inventory * const inv_to=HasInventory(i_to, j_to, k_to);
 	if ( !inv_to ) {
-		GetBlock(i_from, j_from, k_from)->
-			ReceiveSignal(tr("No room there."));
-		return 4;
+		block_from->ReceiveSignal(tr("No room there."));
+		return;
 	}
-	return inv_from->Drop(num, inv_to);
+	if ( inv_from->Drop(src, dest, num, inv_to) ) {
+		block_from->ReceiveSignal(tr("Your bag is lighter now."));
+		GetBlock(i_to, j_to, k_to)->
+			ReceiveSignal(tr("Your bag is heavier now."));
+	}
 }
 
 int World::GetAll(const ushort x_to, const ushort y_to, const ushort z_to) {
@@ -974,7 +970,7 @@ const {
 
 void World::RemSun() {
 	SetBlock(
-		block_manager.NormalBlock(ifStar ? STAR : SKY),
+		Normal(ifStar ? STAR : SKY),
 		sun_moon_x,
 		SHRED_WIDTH*numShreds/2,
 		HEIGHT-1);
@@ -1030,33 +1026,60 @@ World::World(const QString & world_name) :
 		worldName(world_name),
 		cleaned(false),
 		toReSet(false),
-		deferredActionType(DEFERRED_NOTHING)
+		deferredActionType(DEFERRED_NOTHING),
+		settings(QDir::currentPath()+'/'+worldName+"/settings.ini",
+			QSettings::IniFormat),
+		game_settings(QDir::currentPath()+"/freg.ini",
+			QSettings::IniFormat)
 {
-	QSettings settings(QDir::currentPath()+'/'+worldName+"/settings.ini",
-		QSettings::IniFormat);
-	time      =settings.value("time", END_OF_NIGHT).toLongLong();
-	longitude =settings.value("longitude", 0).toLongLong();
-	latitude  =settings.value("latitude", 0).toLongLong();
-	spawnLongi=settings.value("spawn_longitude", 0).toLongLong();
-	spawnLati =settings.value("spawn_latitude", 0).toLongLong();
-	numShreds =settings.value("number_of_shreds", 5).toLongLong();
+	numShreds =
+		game_settings.value("number_of_shreds", 5).toLongLong();
 	numActiveShreds=
-		settings.value("number_of_active_shreds", 5).toLongLong();
+		game_settings.value("number_of_active_shreds", 5).toLongLong();
 
 	QDir::current().mkdir(worldName);
 	QFile map(worldName+"/map.txt");
 	if ( map.open(QIODevice::ReadOnly | QIODevice::Text) ) {
 		mapSize=int(qSqrt(1+4*map.size())-1)/2;
-	} else if ( map.open(QIODevice::WriteOnly | QIODevice::Text) ) {
-		map.write(".\n");
-		map.close();
-		if ( !map.open(QIODevice::ReadOnly | QIODevice::Text) ) {
-			fputs("World::World:: cannot open map.txt.", stderr);
+	} else {
+		const ushort max_command_length=50;
+		char command[max_command_length];
+		const ushort map_size=75;
+		#ifdef Q_OS_LINUX
+			snprintf(command,
+				max_command_length,
+				"./mapgen -s %hu -r %d -f %s",
+				map_size,
+				qrand(),
+				qPrintable(worldName+"/map.txt"));
+		#endif
+		#ifdef Q_OS_WIN32
+			snprintf(command,
+				max_command_length,
+				"mapgen.exe -s %hu -r %d -f %s",
+				map_size,
+				qrand(),
+				qPrintable(worldName+"/map.txt"));
+		#endif
+		system(command);
+		if ( map.open(QIODevice::ReadOnly | QIODevice::Text) ) {
+			mapSize=map_size;
+		} else {
+			mapSize=1;
+			worldMap=".";
 		}
-		mapSize=1;
 	}
 	worldMap=map.readAll();
 	worldMapStream=new QTextStream(worldMap, QIODevice::ReadOnly);
+
+	time=settings.value("time", END_OF_NIGHT).toLongLong();
+	spawnLongi=settings.value("spawn_longitude",
+		int(qrand()%mapSize)).toLongLong();
+	spawnLati =settings.value("spawn_latitude",
+		int(qrand()%mapSize)).toLongLong();
+	longitude =settings.value("longitude", int(spawnLongi)).toLongLong();
+	latitude  =settings.value("latitude",  int(spawnLati )).toLongLong();
+
 	if ( 1!=numShreds%2 ) {
 		++numShreds;
 		fprintf(stderr,
@@ -1087,6 +1110,7 @@ World::World(const QString & world_name) :
 		numActiveShreds=3;
 	}
 	LoadAllShreds();
+	emit UpdatedAll();
 }
 
 World::~World() { CleanAll(); }
@@ -1105,13 +1129,11 @@ void World::CleanAll() {
 
 	SaveAllShreds();
 
-	QSettings sett(QDir::currentPath()+'/'+worldName+"/settings.ini",
-		QSettings::IniFormat);
-	sett.setValue("time", qlonglong(time));
-	sett.setValue("longitude", qlonglong(longitude));
-	sett.setValue("latitude", qlonglong(latitude));
-	sett.setValue("spawn_longitude", qlonglong(spawnLongi));
-	sett.setValue("spawn_latitude", qlonglong(spawnLati));
-	sett.setValue("number_of_shreds", numShreds);
-	sett.setValue("number_of_active_shreds", numActiveShreds);
+	settings.setValue("time", qlonglong(time));
+	settings.setValue("longitude", qlonglong(longitude));
+	settings.setValue("latitude", qlonglong(latitude));
+	settings.setValue("spawn_longitude", qlonglong(spawnLongi));
+	settings.setValue("spawn_latitude", qlonglong(spawnLati));
+	game_settings.setValue("number_of_shreds", numShreds);
+	game_settings.setValue("number_of_active_shreds", numActiveShreds);
 }
