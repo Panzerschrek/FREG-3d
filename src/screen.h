@@ -206,5 +206,4 @@ inline void Screen::sInputTick()
     current_screen->InputTick();
 }
 */
-
 #endif

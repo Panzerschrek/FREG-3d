@@ -345,6 +345,7 @@ void r_Renderer::CopyDepthBuffer()
 void r_Renderer::DrawWater()
 {
 
+	glBlendFunc( GL_ONE, GL_ONE_MINUS_SRC_ALPHA );
 
     sun_shadow_map[ front_shadowmap ].BindDepthTexture(0);
 
@@ -406,6 +407,8 @@ void r_Renderer::DrawWater()
                                    GL_UNSIGNED_SHORT, (GLvoid* const*)shreds_to_draw_indeces,
                                    water_shreds_to_draw_count, water_quads_base_vertices );
 #endif
+
+
 }
 void r_Renderer::DrawHUD()
 {
@@ -914,6 +917,9 @@ void r_Renderer::Draw()
     DrawText();
     glDisable( GL_BLEND );
 
+	/*-------frame-end--------*/
+	glFlush();
+	/*------------------------*/
 
     glEnable( GL_DEPTH_TEST );
     gpu_data_mutex.unlock();
@@ -1752,6 +1758,8 @@ m_Vec3 r_Renderer::AddTextUnicode( float x, float y, const m_Vec3* color, float 
 
 void r_Renderer::DrawText()
 {
+	glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+
     text_buffer.VertexSubData( (float*) font_vertices,
                                letter_count * 4 * sizeof( r_FontVertex ), 0 );
 
@@ -2537,11 +2545,11 @@ void r_Renderer::BuildShredList()
         for( y= 0; y< visibly_world_size[1]; y ++ )
         {
             //circle world form
-            short dx, dy;
+            /*short dx, dy;
             dx= x - visibly_world_size[0]/2;
             dy= y - visibly_world_size[1]/2;
             if( dx * dx + dy * dy > visibly_world_size[0] * visibly_world_size[1] / 4 )
-                continue;
+                continue;*/
 
             shred= &draw_shreds[ x + y * visibly_world_size[0] ];
             if( shred->IsOnOtherSideOfPlane( cam_position, cam_vec ) )

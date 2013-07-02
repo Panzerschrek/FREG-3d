@@ -213,6 +213,7 @@ Screen::Screen(
     cam_pos.y= renderer->Config()->value( "screen/cam_pos_y", 1.0f ).toFloat();
     cam_pos.z= renderer->Config()->value( "screen/cam_pos_z", 1.0f ).toFloat();
 
+
     bool full_screen= renderer->Config()->value( "screen/fullscreen", false).toBool()  &&
                       QApplication::desktop()->width() == screen_width &&
                       QApplication::desktop()->height() == screen_height;
