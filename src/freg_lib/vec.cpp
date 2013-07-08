@@ -20,4 +20,13 @@
 #include "vec.h"
 #include "freg_math.h"
 
+#include <stdio.h>
+
+
+char* m_Vec3::ToGLSLConstant( char* str )
+{
+	sprintf( str, "vec3( %7.10f, %7.10f, %7.10f )", x, y, z );
+	return str;
+}
+
 #endif

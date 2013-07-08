@@ -38,7 +38,7 @@ void main( void )
 {
    	int i_normal= int( normal + 0.00001 );
 	f_normal= normals[ i_normal ];
-	f_tex_coord= coord.xy * 0.125;
+	f_tex_coord= coord.xy * 0.0625;
 	f_light= max( sky_ambient_light * light.x + fire_ambient_light * light.y, 0.05 );
 	f_light*= block_side_light_k[ i_normal ];
 

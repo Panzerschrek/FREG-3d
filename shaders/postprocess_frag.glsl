@@ -9,7 +9,7 @@ uniform float time;
 uniform vec3 inv_screen_size= vec3( 1.0f/ 1024.0, 1.0f/768.0, 0.0 );
 
 uniform float inv_max_view_distance= 0.03125;//for underwater fog
-uniform vec3 underwater_fog_color=10.0 * vec3( 72.0/255.0, 108.0/255.0, 169.0/255.0 );
+uniform vec3 underwater_fog_color= 10.0 * vec3( 72.0/255.0, 108.0/255.0, 169.0/255.0 );
 
 //const float eps= 0.5f;
 const float eps= 0.25;

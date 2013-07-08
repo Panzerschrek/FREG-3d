@@ -409,7 +409,7 @@ void Player::ProcessCommand(QString & command) {
 	if ( "give"==request ) {
 		world->WriteLock();
 		Inventory * const inv=player->HasInventory();
-		if ( !creativeMode ) {
+		if ( false && !creativeMode ) {
 			emit Notify(tr("You are not in Creative Mode."));
 		} else if ( !inv ) {
 			emit Notify(tr("No room."));

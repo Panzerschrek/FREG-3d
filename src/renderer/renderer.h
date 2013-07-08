@@ -53,8 +53,8 @@ class Player;
 
 #define R_MAX_INDECES_PER_SHRED 24576 * 2
 
-const m_Vec3 day_fog( 2.4, 2.4, 3.0 );
-const m_Vec3 night_fog( 0.15, 0.15, 0.1875 );
+const m_Vec3 day_fog( 2.4f, 2.4f, 3.0f );
+const m_Vec3 night_fog( 0.15f, 0.15f, 0.1875f );
 struct r_WorldVertex
 {
     qint16 coord[3];
@@ -241,7 +241,7 @@ private:
     quint32 *water_quads_base_vertices, *water_quads_to_draw_count;
     unsigned int water_shreds_to_draw_count;
 
-
+	//inventory
     int active_inventory_slot, active_inventory;
 
     m_Mat4 view_matrix;
@@ -292,6 +292,8 @@ private:
     void DrawCursor();
 
 
+
+
     quint16 notify_log[ R_NUMBER_OF_NOTIFY_LINES ][ R_NOTIFY_LINE_LENGTH ];
     unsigned int notify_log_last_line;
 
@@ -340,6 +342,7 @@ private:
 
     //water
     GLuint water_texture;
+    unsigned char player_lighting[2];
 
     //deferred shading
     m_Mat3 normal_matrix;//world2viewspace

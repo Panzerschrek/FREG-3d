@@ -124,8 +124,9 @@ class World : public QThread {
 	uchar SunLight(ushort x, ushort y, ushort z) const;
 	uchar FireLight(ushort x, ushort y, ushort z) const;
 
-	private:
+
 	uchar LightMap(ushort x, ushort y, ushort z) const;
+	private:
 	bool SetLightMap(uchar level, ushort x, ushort y, ushort z);
 
 	void ReEnlighten(ushort i, ushort j, ushort k);

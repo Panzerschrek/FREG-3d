@@ -267,6 +267,11 @@ Screen::Screen(
     movable_inv_slot_number= 0;
     active_hand= 0;
 
+
+    player_global_pos.x= float( player->GlobalX() ) - 0.5f;
+    player_global_pos.y= float( player->GlobalY() ) - 0.5f;
+    player_global_pos.z= float( player->Z() ) + 0.5f;
+
 }
 
 Screen::~Screen()

@@ -28,6 +28,8 @@ public:
 	m_Vec3(){}
 	~m_Vec3(){}
 	m_Vec3( float a, float b, float c);
+	m_Vec3( double a, double b, double c);
+	m_Vec3( int a, int b, int c );
 
 	float	Length()	const;
 	float	LengthSqr() const;
@@ -56,12 +58,27 @@ public:
 
 	friend m_Vec3 operator*( float a, m_Vec3& v );
 
+	char* ToGLSLConstant( char* str );
 
 };
 
 
 inline m_Vec3::m_Vec3( float a, float b, float c) :
 x(a), y(b), z(c) {}
+
+inline m_Vec3::m_Vec3( double a, double b, double c )
+{
+	x= float(a);
+	y= float(b);
+	z= float(c);
+}
+
+inline m_Vec3::m_Vec3( int a, int b, int c )
+{
+	x= float(a);
+	y= float(b);
+	z= float(c);
+}
 inline m_Vec3  m_Vec3::operator+ ( const m_Vec3& v ) const
 {
 	return m_Vec3( this->x + v.x, this->y + v.y, this->z + v.z );
@@ -172,4 +189,5 @@ inline m_Vec3 operator*( float a, m_Vec3& v )
 {
 	return m_Vec3( a * v.x, a * v.y, a * v.z );
 }
+
 #endif

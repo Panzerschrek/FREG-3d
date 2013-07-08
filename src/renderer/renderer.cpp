@@ -377,8 +377,8 @@ void r_Renderer::DrawWater()
     water_shader.Uniform( "direct_sun_light", direct_sun_light );
     water_shader.Uniform( "sky_ambient_light", sky_ambient_light );
     water_shader.Uniform( "fire_ambient_light", fire_ambient_light );
-    water_shader.Uniform( "time", float( clock() ) / float( CLOCKS_PER_SEC ) );
-    water_shader.Uniform( "underwater_fog_factor", underwater ? 0.0f : 1.0f );
+    water_shader.Uniform( "time", float( last_frame_time ) / 1000.0f );
+    water_shader.Uniform( "inv_max_view_distance", 0.03125f*( underwater ? 0.0f : 1.0f ) );
 
     m_Vec3 inv_screen_size( 1.0f / float( viewport_x ), 1.0f / float( viewport_y ), 0.0f );
     water_shader.Uniform( "inv_screen_size", inv_screen_size );
@@ -407,7 +407,6 @@ void r_Renderer::DrawWater()
                                    GL_UNSIGNED_SHORT, (GLvoid* const*)shreds_to_draw_indeces,
                                    water_shreds_to_draw_count, water_quads_base_vertices );
 #endif
-
 
 }
 void r_Renderer::DrawHUD()
@@ -1121,12 +1120,17 @@ void r_Renderer::MakePostProcessing()
         scene_hdr_underwater_buffer.BindDepthTexture(2);
 
         underwater_postprocess_shader.Bind();
-        underwater_postprocess_shader.Uniform( "time", float(clock())/float(CLOCKS_PER_SEC) );
+        underwater_postprocess_shader.Uniform( "time", float( last_frame_time) / 1000.0f );
         underwater_postprocess_shader.Uniform( "scene_buffer", 0 );
         underwater_postprocess_shader.Uniform( "bloom_buffer", 1 );
         underwater_postprocess_shader.Uniform( "depth_buffer", 2 );
         underwater_postprocess_shader.Uniform ( "adapted_brightness", scene_brightness );
         underwater_postprocess_shader.Uniform( "depth_convert_k", depth_convert_k );
+
+        m_Vec3 underwater_fog_color= UNDERWATER_FOG_COLOR;
+         underwater_fog_color *=
+		 ( float( player_lighting[0] ) * sky_ambient_light );
+        underwater_postprocess_shader.Uniform( "underwater_fog_color", underwater_fog_color );
 
         inv_screen_size= m_Vec3( 1.0f/float(viewport_x/2), 1.0f/float(viewport_y/2), 0.0f );
         underwater_postprocess_shader.Uniform( "inv_screen_size", inv_screen_size );
@@ -1176,7 +1180,7 @@ void r_Renderer::RenderShadows()
     //sun_pos= -cam_position;
 
     //\F0\E0\F1\F7\B8\F2 \E2\E5\EA\F2\EE\F0\E0 \F1\EE\EB\ED\F6\E0
-    sun_vector= m_Vec3( 0.0, 1.0, 0.0 );
+    sun_vector= m_Vec3( 0.0f, 1.0f, 0.0f );
     sun_vec_rot_Z.Identity(), sun_vec_rot_Z.RotateZ( angle - m_Math::FM_PI2 );
     sun_vec_rot_X.Identity(), sun_vec_rot_X.RotateX( sun_max_horison_angle );
     sun_vec_rot_Z= sun_vec_rot_Z * sun_vec_rot_X;
@@ -1824,6 +1828,16 @@ void r_Renderer::UpdateTick()
     if( renderer_initialized )
     {
         world->ReadLock();
+
+        short player_coord[3];
+        player_coord[0]= player->X();
+        player_coord[1]= player->Y();
+        player_coord[2]= player->Z();
+
+        player_lighting[0]= world->LightMap( player_coord[0], player_coord[1], player_coord[2] );
+        player_lighting[1]= player_lighting[0] >>4;
+        player_lighting[0]&= 15;
+
         UpdateWorldMap();
         UpdateData();
         world->Unlock();
@@ -1947,7 +1961,7 @@ void r_Renderer::LoadShaders()
 
     water_shader.FindUniform( "depth_buffer" );
     water_shader.FindUniform( "depth_convert_k" );
-    water_shader.FindUniform( "underwater_fog_factor" );
+    water_shader.FindUniform( "inv_max_view_distance" );
     water_shader.FindUniform( "inv_screen_size" );
     water_shader.FindUniform( "viewport_scale" );
 
@@ -2089,6 +2103,7 @@ void r_Renderer::LoadShaders()
     underwater_postprocess_shader.FindUniform( "time" );
     underwater_postprocess_shader.FindUniform( "depth_convert_k" );
     underwater_postprocess_shader.FindUniform( "viewport_scale" );
+    underwater_postprocess_shader.FindUniform( "underwater_fog_color" );
 #endif
 
 #ifndef OGL21
@@ -2408,7 +2423,7 @@ r_Renderer::r_Renderer( World* w,Player* p, int width, int height ):
     host_data_mutex( QMutex::NonRecursive ),
     text_data_mutex( QMutex::NonRecursive ),
     update_thread( SUpdateTick, NULL, true ),
-    cam_angle( 0.0, 0.0, 0.0 ),
+    cam_angle( 0.0f, 0.0f, 0.0f ),
     fov( 70.0f * m_Math::FM_TORAD ), z_near( 0.125f ), z_far( 512.0f ),
     viewport_x(width), viewport_y(height),
     renderer_initialized( false ), full_update(false), need_full_update_shred_list(false),

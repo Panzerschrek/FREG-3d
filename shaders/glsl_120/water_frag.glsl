@@ -13,6 +13,7 @@ varying float f_depth;
 
 
 const vec3 water_color= vec3( 72.0/255.0, 108.0/255.0, 169.0/255.0 );
+const vec3 water_deep_color= vec3( 43.0/255.0,82.0/255.0, 198.0/255.0 ) * 0.5;
 const float inv_frenel_k= 1.0/1.6, inv_frenel_k2= 1.0/2.56;
 
 uniform vec3 depth_convert_k;
@@ -50,11 +51,12 @@ void main( void )
 	a= ( b - c ) / ( b + c );
 	a= max( a * a + 0.1, 0.2 );
 
-	/*float depth_delta= LinearFragDepth( gl_FragCoord.xy * inv_screen_size.xy ) - f_depth;
-	a= 1.0 - a;
-	a= underwater_fog_factor * clamp( 1.0 - depth_delta * inv_max_view_distance, 0.0, 1.0 ) * a;
-	a= 1.0 - a;*/
+	vec3 screen_coord= vec3( viewport_scale.xy * ( 2.0 * gl_FragCoord.xy * inv_screen_size.xy - vec2( 1.0, 1.0 ) ), 1.0 );
+	vec3 world_pos= screen_coord * ( LinearFragDepth( gl_FragCoord.xy * inv_screen_size.xy ) - f_depth );
+	float depth_delta= length( world_pos );
+	float a2= min( depth_delta * inv_max_view_distance, 1.0 );
 
-	gl_FragColor= vec4( water_color * l, a );
+	vec3 final_color= l * ( water_color * a + ( 1.0 - a ) * a2 * water_deep_color );  
+	gl_FragColor= vec4( final_color, a2 );
 
 }

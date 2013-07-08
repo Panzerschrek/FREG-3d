@@ -44,7 +44,7 @@ float Noise()
 void main( void )
 {
 
-    f_tex_coord= coord.xy * 0.125;
+    f_tex_coord= coord.xy * 0.0625;
 
 
     vec3 len2= cam_pos - coord;
