@@ -65,13 +65,14 @@ void main( void )
 	c= sqrt( c );
 	a= ( b - c ) / ( b + c );
 	a= max( a * a, 0.1 );
+	
 
 	vec3 screen_coord= vec3( viewport_scale.xy * ( 2.0 * gl_FragCoord.xy * inv_screen_size.xy - vec2( 1.0, 1.0 ) ), 1.0 );
 	vec3 world_pos= screen_coord * ( LinearFragDepth( gl_FragCoord.xy * inv_screen_size.xy ) - f_depth );
 	float depth_delta= length( world_pos );
 	float a2= min( depth_delta * inv_max_view_distance, 1.0 );
 
-	
-	vec3 final_color= l * water_color * a + a2 * water_deep_color * f_light;
-	color= vec4( final_color , a2 );
+
+	vec3 final_color= mix( a2 * water_deep_color * f_light, l * water_color, a );
+	gl_FragColor= vec4( final_color ,  ( 1.0 - a ) * ( 1.0 - a2 ) );
 }

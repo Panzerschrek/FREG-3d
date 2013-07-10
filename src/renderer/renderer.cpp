@@ -334,18 +334,22 @@ void r_Renderer::DrawRain()
 void r_Renderer::CopyDepthBuffer()
 {
     glBindTexture( GL_TEXTURE_2D, scene_depth_buffer );
-   // #ifdef OGL21
-    //glCopyTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, 0, 0, viewport_x, viewport_y, 0 );
-   // #else
+
+#ifdef OGL21
+    if( underwater )
+        glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, viewport_x/2, viewport_y/2 );
+    else
+        glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, viewport_x, viewport_y );
+#else
     glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, viewport_x, viewport_y );
-    //#endif
+#endif
     r_Texture::ResetBinding();
 }
 
 void r_Renderer::DrawWater()
 {
 
-	glBlendFunc( GL_ONE, GL_ONE_MINUS_SRC_ALPHA );
+    glBlendFunc( GL_ONE, GL_SRC_ALPHA );
 
     sun_shadow_map[ front_shadowmap ].BindDepthTexture(0);
 
@@ -391,10 +395,10 @@ void r_Renderer::DrawWater()
     float max_view= 1.0f / ( float( world->NumShreds() - 1 ) * 0.5f * 16.0f );
     water_shader.Uniform( "max_view2", max_view * max_view );
 
-     m_Vec3 viewport_scale;
-    	viewport_scale.y= m_Math::Tan( fov * 0.5f );
-    	viewport_scale.x= viewport_scale.y * float( viewport_x ) / float( viewport_y );
-    	water_shader.Uniform( "viewport_scale", viewport_scale );
+    m_Vec3 viewport_scale;
+    viewport_scale.y= m_Math::Tan( fov * 0.5f );
+    viewport_scale.x= viewport_scale.y * float( viewport_x ) / float( viewport_y );
+    water_shader.Uniform( "viewport_scale", viewport_scale );
 
 
     world_buffer.Bind();
@@ -875,9 +879,13 @@ void r_Renderer::Draw()
 
     DrawSky();
 
+#if OGL21
+	if( !underwater )
+        CopyDepthBuffer();
+#else
     if( !underwater )
         CopyDepthBuffer();
-
+#endif
 
     glEnable( GL_BLEND );
     DrawSun();
@@ -899,6 +907,12 @@ void r_Renderer::Draw()
         DrawRain();
     }
 
+
+#if OGL21
+	if( underwater )
+        CopyDepthBuffer();
+#endif
+
     glDisable( GL_BLEND );
 
     glDisable( GL_DEPTH_TEST );
@@ -916,9 +930,9 @@ void r_Renderer::Draw()
     DrawText();
     glDisable( GL_BLEND );
 
-	/*-------frame-end--------*/
-	glFlush();
-	/*------------------------*/
+    /*-------frame-end--------*/
+    glFlush();
+    /*------------------------*/
 
     glEnable( GL_DEPTH_TEST );
     gpu_data_mutex.unlock();
@@ -1028,6 +1042,7 @@ void r_Renderer::MakeDeferredShading()
 
 void r_Renderer::MakePostprocessingGL21()
 {
+
     if( underwater )
     {
 
@@ -1037,15 +1052,38 @@ void r_Renderer::MakePostprocessingGL21()
         glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
         glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
 
+
+        glActiveTexture( GL_TEXTURE1 );
+        glBindTexture( GL_TEXTURE_2D, scene_depth_buffer );
+
+
         glViewport( 0, 0, viewport_x, viewport_y );
 
         underwater_postprocess_shader.Bind();
         underwater_postprocess_shader.Uniform( "scene_buffer", 0 );
-        underwater_postprocess_shader.Uniform( "time", float(clock())/float( CLOCKS_PER_SEC ) );
+        underwater_postprocess_shader.Uniform( "depth_buffer", 1 );
+        underwater_postprocess_shader.Uniform( "time", float( last_frame_time )/ 1000.0f );
 
         m_Vec3 inv_screen_size( 1.0f/float(viewport_x), 1.0f/float(viewport_y), 0.0f );
         underwater_postprocess_shader.Uniform( "inv_screen_size", inv_screen_size );
+
+        m_Vec3 depth_convert_k;
+        depth_convert_k.x= - z_far * z_near / ( z_far - z_near );
+        depth_convert_k.y= - z_far / ( z_far - z_near );
+        underwater_postprocess_shader.Uniform( "depth_convert_k", depth_convert_k );
+
+        m_Vec3 viewport_scale;
+        viewport_scale.y= m_Math::Tan( fov * 0.5 );
+        viewport_scale.x= viewport_scale.y * float( viewport_x ) / float( viewport_y );
+        underwater_postprocess_shader.Uniform( "viewport_scale", viewport_scale );
+
+         m_Vec3 underwater_fog_color= UNDERWATER_FOG_COLOR;
+        underwater_fog_color *=
+            ( float( player_lighting[0] ) * sky_ambient_light );
+        underwater_postprocess_shader.Uniform( "underwater_fog_color", underwater_fog_color );
+
         fullscreen_quad.Show();
+          r_Texture::ResetBinding();
     }
 }
 void r_Renderer::MakePostProcessing()
@@ -1128,17 +1166,17 @@ void r_Renderer::MakePostProcessing()
         underwater_postprocess_shader.Uniform( "depth_convert_k", depth_convert_k );
 
         m_Vec3 underwater_fog_color= UNDERWATER_FOG_COLOR;
-         underwater_fog_color *=
-		 ( float( player_lighting[0] ) * sky_ambient_light );
+        underwater_fog_color *=
+            ( float( player_lighting[0] ) * sky_ambient_light );
         underwater_postprocess_shader.Uniform( "underwater_fog_color", underwater_fog_color );
 
         inv_screen_size= m_Vec3( 1.0f/float(viewport_x/2), 1.0f/float(viewport_y/2), 0.0f );
         underwater_postprocess_shader.Uniform( "inv_screen_size", inv_screen_size );
 
         m_Vec3 viewport_scale;
-    	viewport_scale.y= m_Math::Tan( fov * 0.5 );
-    	viewport_scale.x= viewport_scale.y * float( viewport_x ) / float( viewport_y );
-    	underwater_postprocess_shader.Uniform( "viewport_scale", viewport_scale );
+        viewport_scale.y= m_Math::Tan( fov * 0.5 );
+        viewport_scale.x= viewport_scale.y * float( viewport_x ) / float( viewport_y );
+        underwater_postprocess_shader.Uniform( "viewport_scale", viewport_scale );
     }
     else
     {
@@ -1762,7 +1800,7 @@ m_Vec3 r_Renderer::AddTextUnicode( float x, float y, const m_Vec3* color, float 
 
 void r_Renderer::DrawText()
 {
-	glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+    glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 
     text_buffer.VertexSubData( (float*) font_vertices,
                                letter_count * 4 * sizeof( r_FontVertex ), 0 );
@@ -2082,9 +2120,14 @@ void r_Renderer::LoadShaders()
     underwater_postprocess_shader.SetAttribLocation( "coord", 0 );
     underwater_postprocess_shader.MoveOnGPU();
     underwater_postprocess_shader.FindUniform( "scene_buffer" );
+    underwater_postprocess_shader.FindUniform( "depth_buffer" );
     underwater_postprocess_shader.FindUniform( "inv_screen_size" );
     underwater_postprocess_shader.FindUniform( "time" );
     underwater_postprocess_shader.FindUniform( "viewport_scale" );
+    underwater_postprocess_shader.FindUniform( "inv_max_view_distance" );
+    underwater_postprocess_shader.FindUniform( "depth_convert_k" );
+    underwater_postprocess_shader.FindUniform( "viewport_scale" );
+    underwater_postprocess_shader.FindUniform( "underwater_fog_color" );
 
 #else
     if( underwater_postprocess_shader.Load( "shaders/postprocess_frag.glsl", "shaders/fullscreen_quad_vert.glsl", NULL ) )
@@ -2240,7 +2283,7 @@ void r_Renderer::LoadShaders()
 
 void r_Renderer::SetupFrameBuffers()
 {
-	#ifdef OGL21
+#ifdef OGL21
     underwater_buffer_gl21.SetFiltration( GL_NEAREST, GL_LINEAR );
     underwater_buffer_gl21.Create();
     underwater_buffer_gl21.TextureData( viewport_x/2, viewport_y/2, GL_UNSIGNED_INT, GL_RGB, 24, NULL );
@@ -2292,8 +2335,9 @@ void r_Renderer::SetupFrameBuffers()
 
 #endif
 
-glGenTextures( 1, &scene_depth_buffer );
+    glGenTextures( 1, &scene_depth_buffer );
     glBindTexture( GL_TEXTURE_2D, scene_depth_buffer );
+
 
     glTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24,
                   viewport_x, viewport_y, 0, GL_DEPTH_COMPONENT,
@@ -2342,10 +2386,10 @@ void r_Renderer::Initialize()
 
 
     LoadShaders();
-     printf( "shaders compiled\n" );
+    printf( "shaders compiled\n" );
 
 
-	SetupFrameBuffers();
+    SetupFrameBuffers();
 
     LoadTextures();
     printf( "textures ready\n" );

@@ -56,7 +56,7 @@ void main( void )
 	float depth_delta= length( world_pos );
 	float a2= min( depth_delta * inv_max_view_distance, 1.0 );
 
-	vec3 final_color= l * ( water_color * a + ( 1.0 - a ) * a2 * water_deep_color );  
-	gl_FragColor= vec4( final_color, a2 );
+	vec3 final_color= l * mix( a2 * water_deep_color, water_color, a );
+	gl_FragColor= vec4( final_color ,  ( 1.0 - a ) * ( 1.0 - a2 ) );
 
 }
