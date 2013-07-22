@@ -30,14 +30,8 @@ typedef QList<craft_item *> craft_recipe;
 class CraftManager {
 	public:
 
-	bool MiniCraft(
-			craft_item & item,
-			craft_item & result)
-		const;
-	bool Craft(
-			const craft_recipe & recipe,
-			craft_item & result)
-		const;
+	bool MiniCraft(craft_item & item, craft_item & result) const;
+	bool Craft(const craft_recipe & recipe, craft_item & result) const;
 	
 	CraftManager();
 	~CraftManager();

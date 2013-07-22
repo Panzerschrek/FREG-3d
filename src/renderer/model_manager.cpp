@@ -173,7 +173,7 @@ void r_ModelManager::LoadModels2()
         if( str[0] != '{' || str[1] != 0 )
         {
             printf( "parse error. model info.\n" );
-            return 1;
+            return;
         }
 
         f>>str;

@@ -22,31 +22,27 @@
 
 CraftManager craft_manager;
 
-bool CraftManager::MiniCraft(
-		craft_item & item,
-		craft_item & result)
-const {
+bool CraftManager::MiniCraft(craft_item & item, craft_item & result) const {
 	craft_recipe recipe;
 	recipe.append(&item);
 	return Craft(recipe, result);
 }
 
-bool CraftManager::Craft(
-		const craft_recipe & recipe,
-		craft_item & result)
+bool CraftManager::Craft(const craft_recipe & recipe, craft_item & result)
 const {
 	const ushort size=recipe.size();
 	for (ushort i=0; i<recipes.size(); ++i) {
-		if ( recipes.at(i)->size()!=size+1 )
+		if ( recipes.at(i)->size()!=size+1 ) {
 			continue;
+		}
 		ushort j=0;
 		for ( ; j<size && recipes.at(i)->at(j)->num==recipe.at(j)->num
 			&& recipes.at(i)->at(j)->kind==recipe.at(j)->kind
 			&& recipes.at(i)->at(j)->sub==recipe.at(j)->sub; ++j);
 		if ( j==size ) {
-			result.num=recipes.at(i)->at(j)->num;
+			result.num =recipes.at(i)->at(j)->num;
 			result.kind=recipes.at(i)->at(j)->kind;
-			result.sub=recipes.at(i)->at(j)->sub;
+			result.sub =recipes.at(i)->at(j)->sub;
 			return true;
 		}
 	}
@@ -60,23 +56,23 @@ CraftManager::CraftManager() {
 		return;
 	}
 	while ( !file.atEnd() ) {
-		QByteArray rec_arr=file.readLine();
+		const QByteArray rec_arr=file.readLine();
 		if ( rec_arr.isEmpty() ) {
-			qDebug("recipes read error.");
+			fputs("recipes read error.\n", stderr);
 			break;
 		}
 		QTextStream in(rec_arr, QIODevice::ReadOnly | QIODevice::Text);
-		craft_recipe * recipe=new craft_recipe;
+		craft_recipe * const recipe=new craft_recipe;
 		for (;;) {
-			craft_item * item=new craft_item;
+			craft_item * const item=new craft_item;
 			item->num=0;
 			in >> item->num >> item->kind >> item->sub;
 			if ( !item->num ) {
 				delete item;
 				break;
-			}
-			else
+			} else {
 				recipe->append(item);
+			}
 		}
 		recipes.append(recipe);
 	}
@@ -84,8 +80,9 @@ CraftManager::CraftManager() {
 
 CraftManager::~CraftManager() {
 	for (ushort j=0; j<recipes.size(); ++j) {
-		for (ushort i=0; i<recipes.at(j)->size(); ++i)
+		for (ushort i=0; i<recipes.at(j)->size(); ++i) {
 			delete recipes.at(j)->at(i);
+		}
 		delete recipes.at(j);
 	}
 }

@@ -1,7 +1,7 @@
 /****************************************************************************
 ** Meta object code from reading C++ file 'Player.h'
 **
-** Created: Thu 30. May 19:10:49 2013
+** Created: Fri 12. Jul 15:28:40 2013
 **      by: The Qt Meta Object Compiler version 63 (Qt 4.8.3)
 **
 ** WARNING! All changes made in this file will be lost!
@@ -40,11 +40,11 @@ static const uint qt_meta_data_Player[] = {
 
  // slots: signature, parameters, type, tag, flags
      116,    7,    7,    7, 0x0a,
-     127,    7,    7,    7, 0x0a,
-     146,    7,    7,    7, 0x0a,
-     161,    7,    7,    7, 0x0a,
-     184,    7,    7,    7, 0x0a,
-     226,  208,    7,    7, 0x0a,
+     131,  127,    7,    7, 0x0a,
+     150,    7,    7,    7, 0x0a,
+     165,    7,    7,    7, 0x0a,
+     188,    7,    7,    7, 0x0a,
+     230,  212,    7,    7, 0x0a,
 
        0        // eod
 };
@@ -53,7 +53,7 @@ static const char qt_meta_stringdata_Player[] = {
     "Player\0\0x,y,z\0Moved(long,long,ushort)\0"
     "Notify(QString)\0OverstepBorder(int)\0"
     "Updated()\0GetString(QString&)\0Destroyed()\0"
-    "CleanAll()\0CheckOverstep(int)\0"
+    "CleanAll()\0dir\0CheckOverstep(int)\0"
     "BlockDestroy()\0WorldSizeReloadStart()\0"
     "WorldSizeReloadFinish()\0set_x,set_y,set_z\0"
     "SetPlayer(ushort,ushort,ushort)\0"

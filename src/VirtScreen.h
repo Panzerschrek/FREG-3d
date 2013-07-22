@@ -38,8 +38,6 @@ class VirtScreen : public QObject {
 
 	Q_OBJECT
 	
-	enum window_views { NORMAL, FRONT, INVENTORY };
-
 	protected:
 	///world to print
 	World * const w;
@@ -52,7 +50,7 @@ class VirtScreen : public QObject {
 
 	public slots:
 	///This is called for a notification to be displayed.
-	virtual void Notify(const QString &)=0;
+	virtual void Notify(const QString &) const=0;
 
 	///This is called when program is stopped and from destructor.
 	/**
@@ -65,7 +63,7 @@ class VirtScreen : public QObject {
 	/**
 	 * It is connected to world in constructor.
 	 */
-	virtual QString & PassString(QString &) const=0;
+	virtual QString PassString(QString &) const=0;
 
 	///This is called when block at (x, y, z) should be updated in screen.
 	/**

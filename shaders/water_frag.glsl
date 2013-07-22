@@ -40,9 +40,14 @@ void main( void )
 
 
 	vec3 n= texture( normal_map, vec3( f_tex_coord, time * 0.25 ) ).xyz;
-	//n+= texture( normal_map, vec3( f_tex_coord * 0.25, time * 0.25 ) ).xyz;
 	n*=2.0;
 	n-= vec3( 1.0, 1.0, 1.0 );
+
+	/*vec3 n2= texture( normal_map, vec3( f_tex_coord * 0.5, time * 0.125 ) ).xyz;
+	n2*=2.0;
+	n2-= vec3( 1.0, 1.0, 1.0 );
+	n= n * 0.4 + n2 * 0.6;*/
+
 	n= mix( f_normal, n, abs( f_normal.z ) );
 
 
@@ -71,7 +76,7 @@ void main( void )
 	vec3 world_pos= screen_coord * ( LinearFragDepth( gl_FragCoord.xy * inv_screen_size.xy ) - f_depth );
 	float depth_delta= length( world_pos );
 	float a2= min( depth_delta * inv_max_view_distance, 1.0 );
-
+	//float a2= 1.0 - exp( -depth_delta * inv_max_view_distance );
 
 	vec3 final_color= mix( a2 * water_deep_color * f_light, l * water_color, a );
 	gl_FragColor= vec4( final_color ,  ( 1.0 - a ) * ( 1.0 - a2 ) );

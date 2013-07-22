@@ -26,10 +26,13 @@
 #include <QString>
 #include <QSettings>
 #include <QDir>
+#include <QTime>
 #include "world.h"
 #include "Player.h"
 
 int main(int argc, char *argv[]) {
+	freopen("errors.txt", "w", stderr);
+	qsrand(QTime::currentTime().msec());
 	#ifdef NOX
 		QCoreApplication freg(argc, argv);
 	#else
@@ -46,7 +49,7 @@ int main(int argc, char *argv[]) {
 
 	World earth(worldName);
 	Player player(&earth);
-	Screen screen(&earth, &player);
+	const Screen screen(&earth, &player);
 	earth.start();
 
 	QObject::connect(&player, SIGNAL(Destroyed()),

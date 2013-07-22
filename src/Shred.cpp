@@ -23,6 +23,20 @@
 #include "world.h"
 #include "BlockManager.h"
 
+enum shred_type {
+	SHRED_NULLMOUNTAIN='#',
+	SHRED_PLAIN='.',
+	SHRED_TESTSHRED='t',
+	SHRED_PYRAMID='p',
+	SHRED_HILL='+',
+	SHRED_DESERT=':',
+	SHRED_WATER='~',
+	SHRED_FOREST='%',
+	SHRED_MOUNTAIN='^',
+	SHRED_EMPTY='_',
+	SHRED_NORMAL_UNDERGROUND='-'
+};
+
 const ushort SEA_LEVEL    = 58;
 const ushort SEABED_LEVEL = 48;
 const ushort PLANE_LEVEL  = 64;
@@ -34,7 +48,7 @@ const float PLANE_AMPLITUDE  =  8.0f;
 const float HILL_AMPLITUDE   = 29.0f;
 const float MOUNTAIN_AMPLITUDE=50.0f;
 
-/*landscape generation:
+/* landscape generation:
  * [ level - amplitude; level + amplitude ]
  * faster- [ level - amplitude/2; level + amplitude/2 ]
  * perlin [ -1; 1]
@@ -42,7 +56,7 @@ const float MOUNTAIN_AMPLITUDE=50.0f;
 */
 
 //Qt version in Debian stable that time.
-const int datastream_version=QDataStream::Qt_4_6;
+const quint8 DATASTREAM_VERSION=QDataStream::Qt_4_6;
 
 float Noise2(const int x, const int y) { //range - [-1;1]
 	int n = x + y * 57;
@@ -73,16 +87,13 @@ float InterpolatedNoise(const short x, const short y) { //range - [-1;1]
 }
 
 float FinalNoise(short x, short y) { //range [-1;1]  middle= 0
-	float r;
-	r = 0.5f * InterpolatedNoise(x, y);
+	float r = 0.5f * InterpolatedNoise(x, y);
 
 	x <<= 1, y <<= 1;
 	r += 0.25f * InterpolatedNoise(x, y);
 
 	x <<= 1, y <<= 1;
-	r += 0.125f * InterpolatedNoise(x, y);
-
-	return r;
+	return (r += 0.125f * InterpolatedNoise(x, y));
 }
 
 void Shred::ShredNominalAmplitudeAndLevel(
@@ -91,26 +102,26 @@ void Shred::ShredNominalAmplitudeAndLevel(
 		float * const a)
 const {
 	switch (shred_type) {
-		case 't':
-		case 'p':
-		case '%':
-		case '#':
-		case ';':
+		case SHRED_TESTSHRED:
+		case SHRED_PYRAMID:
+		case SHRED_FOREST:
+		case SHRED_NULLMOUNTAIN:
+		case SHRED_DESERT:
 		default:
 			*l = PLANE_LEVEL;
 			*a = PLANE_AMPLITUDE;
 		break;
 
-		case '~':
+		case SHRED_WATER:
 			*l = SEABED_LEVEL;
 			*a = SEABED_AMPLITUDE;
 		break;
 
-		case '^':
+		case SHRED_MOUNTAIN:
 			*l = MOUNTAIN_LEVEL;
 			*a = MOUNTAIN_AMPLITUDE;
 		break;
-		case '+':
+		case SHRED_HILL:
 			*l = HILL_LEVEL;
 			*a = HILL_AMPLITUDE;
 		break;
@@ -133,15 +144,15 @@ const {
 		TypeOfShred(longi - 1, lati + 1),
 		TypeOfShred(longi + 1, lati - 1)
 	};
-	float amplitude, level;
 	float a2;
 	ushort l2;
 
 	const char this_shred_type = TypeOfShred(longi, lati);
 	ShredNominalAmplitudeAndLevel(this_shred_type, &l2, &a2);
+	float amplitude, level;
 	const float this_shred_amplitude = amplitude = a2;
 	const float this_shred_level = level = float (l2);
-	for (int i = 0; i < 8; i++) {
+	for (int i = 0; i < 8; ++i) {
 		if (shred_types[i] != this_shred_type) {
 			ShredNominalAmplitudeAndLevel(shred_types[i], &l2,&a2);
 			amplitude += (a2 - this_shred_amplitude) * (1.0f/9.0f);
@@ -159,35 +170,32 @@ ushort Shred::ShredY() const { return shredY; }
 
 World * Shred::GetWorld() const { return world; }
 
-int Shred::LoadShred(QFile & file) {
-	QByteArray read_data=file.readAll();
-	QByteArray uncompressed=qUncompress(read_data);
-	QDataStream in(uncompressed);
+bool Shred::LoadShred(QFile & file) {
+	QDataStream in(qUncompress(file.readAll()));
 	quint8 version;
 	in >> version;
-	if ( datastream_version!=version ) {
+	if ( Q_UNLIKELY(DATASTREAM_VERSION!=version) ) {
 		fprintf(stderr,
 			"Wrong version: %d\nGenerating new shred.\n",
-			datastream_version);
-		return 1;
+			DATASTREAM_VERSION);
+		return false;
 	}
-	in.setVersion(datastream_version);
+	in.setVersion(DATASTREAM_VERSION);
 	for (ushort i=0; i<SHRED_WIDTH; ++i)
 	for (ushort j=0; j<SHRED_WIDTH; ++j) {
 		PutNormalBlock(NULLSTONE, i, j, 0);
-		lightMap[i][j][0] = 0;
-		for (ushort k=1; k<HEIGHT; ++k) {
-			SetBlock(block_manager.BlockFromFile(in),
-				 i, j, k);
+		lightMap[i][j][0]=0;
+		for (ushort k=1; k<HEIGHT-1; ++k) {
+			SetBlock(block_manager.BlockFromFile(in), i, j, k);
 			lightMap[i][j][k]=0;
 		}
-		lightMap[i][j][HEIGHT-1]=MAX_LIGHT_RADIUS;
+		SetBlock(block_manager.BlockFromFile(in), i, j, HEIGHT-1);
+		lightMap[i][j][HEIGHT-1]=1;
 	}
-	return 0;
+	return true;
 }
 
-Shred::Shred(
-		World * const world_,
+Shred::Shred(World * const world_,
 		const ushort shred_x, const ushort shred_y,
 		const long longi, const long lati)
 	:
@@ -199,34 +207,35 @@ Shred::Shred(
 {
 	activeListFrequent.reserve(100);
 	activeListRare.reserve(500);
-	activeListAll.reserve(1000);
+	activeListAll.reserve(600);
 	fallList.reserve(100);
 	QFile file(FileName());
-	if ( file.open(QIODevice::ReadOnly) && !LoadShred(file) ) {
+	if ( file.open(QIODevice::ReadOnly) && LoadShred(file) ) {
 		return;
 	}
 	for (ushort i=0; i<SHRED_WIDTH; ++i)
 	for (ushort j=0; j<SHRED_WIDTH; ++j) {
 		PutNormalBlock(NULLSTONE, i, j, 0);
+		lightMap[i][j][0]=0;
 		for (ushort k=1; k<HEIGHT-1; ++k) {
 			PutNormalBlock(AIR, i, j, k);
 			lightMap[i][j][k]=0;
 		}
 		PutNormalBlock(( (qrand()%5) ? SKY : STAR ), i, j, HEIGHT-1);
-		lightMap[i][j][HEIGHT-1]=MAX_LIGHT_RADIUS;
+		lightMap[i][j][HEIGHT-1]=1;
 	}
 	switch ( TypeOfShred(longi, lati) ) {
-		case '#': NullMountain(); break;
-		case '.': Plain();        break;
-		case 't': TestShred();    break;
-		case 'p': Pyramid();      break;
-		case '+': Hill();         break;
-		case '^': Mountain();     break;
-		case ':': Desert();       break;
-		case '%': Forest(longi, lati); break;
-		case '~': Water( longi, lati); break;
-		case '_': /* empty shred */    break;
-		case '-': NormalUnderground(); break;
+		case SHRED_NULLMOUNTAIN: NullMountain(); break;
+		case SHRED_PLAIN: Plain(); break;
+		case SHRED_TESTSHRED: TestShred(); break;
+		case SHRED_PYRAMID: Pyramid(); break;
+		case SHRED_HILL: Hill(); break;
+		case SHRED_DESERT: Desert(); break;
+		case SHRED_WATER: Water(); break;
+		case SHRED_FOREST: Forest(); break;
+		case SHRED_MOUNTAIN: Mountain(); break;
+		case SHRED_EMPTY: /* empty shred */ break;
+		case SHRED_NORMAL_UNDERGROUND: NormalUnderground(); break;
 		default:
 			Plain();
 			fprintf(stderr,
@@ -234,29 +243,34 @@ Shred::Shred(
 				TypeOfShred(longi, lati),
 				int(TypeOfShred(longi, lati)));
 	}
-}
+} //Shred::Shred
 
 Shred::~Shred() {
+	foreach(Active * const active, activeListAll) {
+		active->SetShredNull();
+	}
 	const long mapSize=world->MapSize();
 	if (
 			(longitude < mapSize) && (longitude >= 0) &&
 			(latitude  < mapSize) && (latitude  >= 0) )
 	{
 		QFile file(FileName());
-		if ( !file.open(QIODevice::WriteOnly) ) {
+		if ( Q_UNLIKELY(!file.open(QIODevice::WriteOnly)) ) {
 			fputs("Shred::~Shred: Write Error\n", stderr);
 			return;
 		}
 		QByteArray shred_data;
-		shred_data.reserve(200000);
+		shred_data.reserve(100000);
 		QDataStream outstr(&shred_data, QIODevice::WriteOnly);
-		outstr << (quint8)datastream_version;
-		outstr.setVersion(datastream_version);
+		outstr << DATASTREAM_VERSION;
+		outstr.setVersion(DATASTREAM_VERSION);
 		for (ushort i=0; i<SHRED_WIDTH; ++i)
-		for (ushort j=0; j<SHRED_WIDTH; ++j)
-		for (ushort k=1; k<HEIGHT; ++k) {
-			blocks[i][j][k]->SaveToFile(outstr);
-			block_manager.DeleteBlock(blocks[i][j][k]);
+		for (ushort j=0; j<SHRED_WIDTH; ++j) {
+			for (ushort k=1; k<HEIGHT-1; ++k) {
+				blocks[i][j][k]->SaveToFile(outstr);
+				block_manager.DeleteBlock(blocks[i][j][k]);
+			}
+			blocks[i][j][HEIGHT-1]->SaveToFile(outstr);
 		}
 		file.write(qCompress(shred_data));
 		return;
@@ -266,18 +280,19 @@ Shred::~Shred() {
 	for (ushort k=1; k<HEIGHT-1; ++k) {
 		block_manager.DeleteBlock(blocks[i][j][k]);
 	}
-}
+} //Shred::~Shred
 
-void Shred::SetNewBlock(
-		const int kind, const int sub,
-		const ushort x, const ushort y, const ushort z)
+void Shred::SetNewBlock(const int kind, const int sub,
+		const ushort x, const ushort y, const ushort z,
+		const int dir)
 {
 	block_manager.DeleteBlock(blocks[x][y][z]);
-	SetBlock( block_manager.NewBlock(kind, sub), x, y, z );
+	Block * const block=block_manager.NewBlock(kind, sub);
+	block->SetDir(dir);
+	SetBlock(block, x, y, z);
 }
 
-void Shred::RegisterBlock(
-		Block * const block,
+void Shred::RegisterBlock(Block * const block,
 		const ushort x, const ushort y, const ushort z)
 {
 	Active * const active=block->ActiveBlock();
@@ -290,33 +305,32 @@ void Shred::RegisterBlock(
 
 void Shred::PhysEventsFrequent() {
 	for (int j=0; j<fallList.size(); ++j) {
-		Active * const temp=fallList[j];
+		Active * const temp=fallList.at(j);
 		const ushort weight=temp->Weight();
 		if ( weight ) {
 			const ushort x=temp->X();
 			const ushort y=temp->Y();
 			const ushort z=temp->Z();
-			if ( weight > Weight(
-					x%SHRED_WIDTH,
-					y%SHRED_WIDTH, z-1) )
+			if ( weight<=Weight(x%SHRED_WIDTH, y%SHRED_WIDTH, z-1)
+					|| !world->Move(x, y, z, DOWN) )
 			{
-				if ( !world->Move(x, y, z, DOWN) ) {
-					RemFalling(temp);
-					temp->FallDamage();
-				}
-			} else {
 				RemFalling(temp);
 				temp->FallDamage();
 			}
+			world->DestroyAndReplace(x, y, z);
 		}
 	}
 	for (int j=0; j<activeListFrequent.size(); ++j) {
-		activeListFrequent[j]->ActFrequent();
+		Active * const active=activeListFrequent.at(j);
+		active->ActFrequent();
+		world->DestroyAndReplace(active->X(),active->Y(), active->Z());
 	}
 }
 void Shred::PhysEventsRare() {
 	for (int j=0; j<activeListRare.size(); ++j) {
-		activeListRare[j]->ActRare();
+		Active * const active=activeListRare.at(j);
+		active->ActRare();
+		world->DestroyAndReplace(active->X(),active->Y(), active->Z());
 	}
 }
 
@@ -379,27 +393,35 @@ void Shred::AddFalling(const ushort x, const ushort y, const ushort z) {
 	}
 }
 
+void Shred::AddShining(Active * const active) {
+	shiningList.append(active);
+}
+
+void Shred::RemShining(Active * const active) {
+	shiningList.removeOne(active);
+}
+
 void Shred::ReloadToNorth() {
 	for (ushort i=0; i<activeListAll.size(); ++i) {
-		activeListAll[i]->ReloadToNorth();
+		activeListAll.at(i)->ReloadToNorth();
 	}
 	++shredY;
 }
 void Shred::ReloadToEast() {
 	for (ushort i=0; i<activeListAll.size(); ++i) {
-		activeListAll[i]->ReloadToEast();
+		activeListAll.at(i)->ReloadToEast();
 	}
 	--shredX;
 }
 void Shred::ReloadToSouth() {
 	for (ushort i=0; i<activeListAll.size(); ++i) {
-		activeListAll[i]->ReloadToSouth();
+		activeListAll.at(i)->ReloadToSouth();
 	}
 	--shredY;
 }
 void Shred::ReloadToWest() {
 	for (ushort i=0; i<activeListAll.size(); ++i) {
-		activeListAll[i]->ReloadToWest();
+		activeListAll.at(i)->ReloadToWest();
 	}
 	++shredX;
 }
@@ -408,37 +430,33 @@ Block *Shred::GetBlock(const ushort x, const ushort y, const ushort z) const {
 	return blocks[x][y][z];
 }
 
-void Shred::SetBlock(
-		Block * const block,
+void Shred::SetBlock(Block * const block,
+		const ushort x, const ushort y, const ushort z)
+{
+	RegisterBlock((blocks[x][y][z]=block), x, y, z);
+}
+
+void Shred::PutBlock(Block * const block,
 		const ushort x, const ushort y, const ushort z)
 {
 	blocks[x][y][z]=block;
-	RegisterBlock(block, x, y, z);
 }
 
-void Shred::PutBlock(
-		Block * const block,
+void Shred::PutNormalBlock(const int sub,
 		const ushort x, const ushort y, const ushort z)
 {
-	blocks[x][y][z]=block;
+	blocks[x][y][z]=Normal(sub);
 }
 
-void Shred::PutNormalBlock(
-		const int sub,
-		const ushort x, const ushort y, const ushort z,
-		const int dir)
-{
-	blocks[x][y][z]=Normal(sub, dir);
-}
-
-Block * Shred::Normal(const int sub, const int dir) {
-	return block_manager.NormalBlock(sub, dir);
+Block * Shred::Normal(const int sub) {
+	return block_manager.NormalBlock(sub);
 }
 
 QString Shred::FileName() const {
-	return world->WorldName()+"/y"+
-		QString::number(longitude)+"x"+
-		QString::number(latitude);
+	return QString("%1/y%2x%3").
+		arg(world->WorldName()).
+		arg(longitude).
+		arg(latitude);
 }
 
 char Shred::TypeOfShred(const long longi, const long lati) const {
@@ -448,8 +466,7 @@ char Shred::TypeOfShred(const long longi, const long lati) const {
 			lati  >= mapSize || lati  < 0 )
 	{
 		return OUT_BORDER_SHRED;
-	}
-	if ( !world->MapStream()->seek((mapSize+1)*longi+lati) ) {
+	} else if ( !world->MapStream()->seek((mapSize+1)*longi+lati) ) {
 		return DEFAULT_SHRED;
 	}
 	char c;
@@ -460,7 +477,7 @@ char Shred::TypeOfShred(const long longi, const long lati) const {
 void Shred::AddWater() {
 	for (long longi=longitude-1; longi<=longitude+1; ++longi)
 	for (long lati =latitude -1; lati <=latitude +1; ++lati ) {
-		if ( '~'==TypeOfShred(longi, lati) ) {
+		if ( SHRED_WATER==TypeOfShred(longi, lati) ) {
 			for (ushort i = 0; i < SHRED_WIDTH; i++)
 			for (ushort j = 0; j < SHRED_WIDTH; j++) {
 				for (ushort k = SEA_LEVEL; true; k--) {
@@ -487,10 +504,10 @@ ushort Shred::FlatUndeground(short depth) {
 	if ( level >= HEIGHT-2 ) {
 		level=HEIGHT-2;
 	}
-	for (ushort i = 0; i < SHRED_WIDTH; i++)
-	for (ushort j = 0; j < SHRED_WIDTH; j++) {
+	for (ushort i = 0; i < SHRED_WIDTH; ++i)
+	for (ushort j = 0; j < SHRED_WIDTH; ++j) {
 		ushort k;
-		for (k = 1; k <= level - depth - 6; k++) {
+		for (k = 1; k <= level - depth - 6; ++k) {
 			PutNormalBlock(STONE, i, j, k);
 		}
 		for (; k <= level; ++k) {
@@ -520,45 +537,38 @@ void Shred::NormalUnderground(const ushort depth, const int sub) {
 	}
 	float amplitude[9];
 	ushort level[9];
-	float interp_level, interp_amplitude;
-	float il[4], ia[4];
-	float ik_x, ik_y;
-
-	ShredLandAmplitudeAndLevel(longitude, latitude, &level[8],
-		&amplitude[8]);
-	ShredLandAmplitudeAndLevel(longitude + 1, latitude, &level[0],
-		&amplitude[0]);
-	ShredLandAmplitudeAndLevel(longitude - 1, latitude, &level[1],
-		&amplitude[1]);
-	ShredLandAmplitudeAndLevel(longitude, latitude + 1, &level[2],
-		&amplitude[2]);
-	ShredLandAmplitudeAndLevel(longitude, latitude - 1, &level[3],
-		&amplitude[3]);
-	ShredLandAmplitudeAndLevel(longitude + 1, latitude - 1, &level[4],
-		&amplitude[4]);
-	ShredLandAmplitudeAndLevel(longitude + 1, latitude + 1, &level[5],
-		&amplitude[5]);
-	ShredLandAmplitudeAndLevel(longitude - 1, latitude + 1, &level[6],
-		&amplitude[6]);
-	ShredLandAmplitudeAndLevel(longitude - 1, latitude - 1, &level[7],
-		&amplitude[7]);
-	/*
-	   7 1 6
-	   3 8 2
-	   4 0 5
-	 */
-	ushort h;
-	ushort k;
-	short dirt_h;
+	const struct {
+		ushort * lev;
+		float * ampl;
+	} ampllev[]={
+		/* 7 1 6
+		 * 3 8 2
+		 * 4 0 5 */
+		{&level[7], &amplitude[7]},
+		{&level[1], &amplitude[1]},
+		{&level[6], &amplitude[6]},
+		{&level[3], &amplitude[3]},
+		{&level[8], &amplitude[8]},
+		{&level[2], &amplitude[2]},
+		{&level[4], &amplitude[4]},
+		{&level[0], &amplitude[0]},
+		{&level[5], &amplitude[5]},
+	};
+	for (int i=-1; i<=1; ++i)
+	for (int j=-1; j<=1; ++j) {
+		ShredLandAmplitudeAndLevel(i+longitude, j+latitude,
+			ampllev[(i+1)*3+j+1].lev,
+			ampllev[(i+1)*3+j+1].ampl);
+	}
 	for (ushort i = 0; i < SHRED_WIDTH; ++i)
 	for (ushort j = 0; j < SHRED_WIDTH; ++j) {
-		/*
-		 * 3+---+2
+		/* 3+---+2
 		 *  |...|
-                 *  |...|
-		 * 0+---+1
-		 */
+		 *  |...|
+		 * 0+---+1 */
 		//interpolate land amplitude and level
+		float il[4], ia[4];
+		float ik_x, ik_y;
 		if (j < SHRED_WIDTH / 2 && i < SHRED_WIDTH / 2) {
 			il[0] = float (level[3]), ia[0] = amplitude[3];
 			il[1] = float (level[8]), ia[1] = amplitude[8];
@@ -590,21 +600,18 @@ void Shred::NormalUnderground(const ushort depth, const int sub) {
 		}
 		il[0] = il[0] * ik_y + (1.0f - ik_y) * il[3];
 		il[1] = il[1] * ik_y + (1.0f - ik_y) * il[2];
-		interp_level = il[0] * (1.0f - ik_x) + il[1] * ik_x;
+		const float interp_level = il[0]*(1.0f - ik_x) + il[1] * ik_x;
 
 		ia[0] = ia[0] * ik_y + (1.0f - ik_y) * ia[3];
 		ia[1] = ia[1] * ik_y + (1.0f - ik_y) * ia[2];
-		interp_amplitude = ia[0] * (1.0f - ik_x) + ia[1] * ik_x;
+		const float interp_amplitude = ia[0]*(1.0f-ik_x) + ia[1]*ik_x;
 
-		h = short (interp_level +
-			   FinalNoise(latitude * 16 + i,
-				      longitude * 16 +
-				      j) * interp_amplitude) - depth;
-		if( h >= HEIGHT - 1 ) {
-            		h= HEIGHT - 2;
-		} else if ( h < 2 ) {
-			h = 2;
-		}
+		const ushort h = qBound(2,
+			short (interp_level + FinalNoise(
+				latitude *16 + i,
+				longitude*16 + j) * interp_amplitude) - depth,
+			HEIGHT - 2);
+		short dirt_h;
 		if (h < 80) {
 			dirt_h = 5;
 			dirt_h+= short( 3.0f * FinalNoise(
@@ -621,7 +628,8 @@ void Shred::NormalUnderground(const ushort depth, const int sub) {
 		} else {
 			dirt_h = 0;
 		}
-		
+
+		ushort k;
 		for (k = 1; k < h - dirt_h && h < HEIGHT - 1; ++k) {
 			PutNormalBlock(STONE, i, j, k);
 		}
@@ -629,7 +637,7 @@ void Shred::NormalUnderground(const ushort depth, const int sub) {
 			PutNormalBlock(sub, i, j, k);
 		}
 	}
-}
+} //Shred::NormalUnderground
 
 void Shred::CoverWith(const int kind, const int sub) {
 	for (ushort i=0; i<SHRED_WIDTH; ++i)
@@ -654,7 +662,6 @@ void Shred::RandomDrop(const ushort num,
 				}
 				break;
 			}
-
 		}
 	}
 }
@@ -671,7 +678,7 @@ void Shred::PlantGrass() {
 }
 
 void Shred::TestShred() {
-	ushort level=FlatUndeground()+1;
+	const ushort level=FlatUndeground()+1;
 	//row 1
 	SetNewBlock(CLOCK, IRON, 1, 1, level);
 	SetNewBlock(CHEST, WOOD, 3, 1, level);
@@ -705,6 +712,7 @@ void Shred::TestShred() {
 	SetNewBlock(DOOR, STONE, 9, 5, level);
 	blocks[9][5][level]->SetDir(NORTH);
 	SetNewBlock(BLOCK, CLAY, 11, 5, level);
+	SetNewBlock(LIQUID, STONE, 13, 5, level-1);
 	//suicide booth
 	/*for (ushort i=1; i<4; ++i)
 	for (ushort j=7; j<10; ++j)
@@ -714,7 +722,7 @@ void Shred::TestShred() {
 		}
 	}
 	SetNewBlock(RABBIT, A_MEAT, 2, 8, level);*/
-}
+} //Shred::TestShred
 
 void Shred::NullMountain() {
 	for (ushort i=0; i<SHRED_WIDTH; ++i)
@@ -741,15 +749,15 @@ void Shred::Plain() {
 	PlantGrass();
 }
 
-void Shred::Forest(const long longi, const long lati) {
+void Shred::Forest() {
 	NormalUnderground();
 	if ( !FLAT_GENERATION ) {
 		AddWater();
 	}
 	ushort number_of_trees=0;
-	for (long i=longi-1; i<=longi+1; ++i)
-	for (long j=lati -1; j<=lati +1; ++j) {
-		if ( '%'==TypeOfShred(i, j) ) {
+	for (long i=longitude-1; i<=longitude+1; ++i)
+	for (long j=latitude -1; j<=latitude +1; ++j) {
+		if ( SHRED_FOREST==TypeOfShred(i, j) ) {
 			++number_of_trees;
 		}
 	}
@@ -769,12 +777,12 @@ void Shred::Forest(const long longi, const long lati) {
 	PlantGrass();
 }
 
-void Shred::Water(const long, const long) {
+void Shred::Water() {
 	if ( FLAT_GENERATION ) {
 		ushort depth=0;
 		for (long longi=longitude-1; longi<=longitude+1; ++longi)
 		for (long lati =latitude -1; lati <=latitude +1; ++lati ) {
-			if ( '~'==TypeOfShred(longi, lati) ) {
+			if ( SHRED_WATER==TypeOfShred(longi, lati) ) {
 				depth+=2;
 			}
 		}
@@ -791,21 +799,20 @@ void Shred::Water(const long, const long) {
 
 void Shred::Pyramid() {
 	//pyramid by Panzerschrek
-	//'p' - pyramid symbol
 	ushort level=FlatUndeground();
 	if ( level > 127-16 ) {
 		level=127-16;
 	}
 	ushort z, dz, x, y;
 	//пирамида
-	for (z=level+1, dz=0; dz<8; z+=2, dz++) {
-		for (x=dz; x<(16 - dz); x++) {
+	for (z=level+1, dz=0; dz<8; z+=2, ++dz) {
+		for (x=dz; x<(16 - dz); ++x) {
 			blocks[x][dz][z] =
 				blocks[x][15-dz][z]=
 				blocks[x][dz][z+1] =
 				blocks[x][15-dz][z+1]=Normal(STONE);
 		}
-		for (y=dz; y<(16-dz); y++) {
+		for (y=dz; y<(16-dz); ++y) {
 			blocks[dz][y][z] =
 				blocks[15-dz][y][z]=
 				blocks[dz][y][z+1] =
@@ -815,17 +822,17 @@ void Shred::Pyramid() {
 	//вход
 	blocks[SHRED_WIDTH/2][0][level+1]=Normal(AIR);
 	//камера внутри
-	for (z=HEIGHT/2-60, dz=0; dz<8; dz++, z++) {
-		for (x=1; x<SHRED_WIDTH-1; x++)
-		for (y=1; y<SHRED_WIDTH-1; y++) {
+	for (z=HEIGHT/2-60, dz=0; dz<8; ++dz, ++z) {
+		for (x=1; x<SHRED_WIDTH-1; ++x)
+		for (y=1; y<SHRED_WIDTH-1; ++y) {
 			blocks[x][y][z]=Normal(AIR);
 		}
 	}
 	//шахта
-	for (z=HEIGHT/2-52; z<=level; z++) {
+	for (z=HEIGHT/2-52; z<=level; ++z) {
 		blocks[SHRED_WIDTH/2][SHRED_WIDTH/2][z]=Normal(AIR);
 	}
-}
+} //Shred::Pyramid
 
 void Shred::Hill() {
 	NormalUnderground();
@@ -856,9 +863,80 @@ void Shred::Hill() {
 }
 
 void Shred::Mountain() {
-	//TODO: add FLAT_GENERATION mountain
 	NormalUnderground();
+	if ( FLAT_GENERATION ) {
+		/* ###
+		 * #~#??? east bridge
+		 * ###
+		 *  ?
+		 *  ? south bridge
+		 *  ?
+		 * */
+		ushort i, j;
+		const ushort mount_top=3*HEIGHT/4;
+		NormalCube(0, 0, 1,
+			SHRED_WIDTH/2, SHRED_WIDTH/2, mount_top, STONE);
+		//south bridge
+		if ( SHRED_MOUNTAIN==TypeOfShred(longitude+1, latitude) ) {
+			NormalCube(qrand()%(SHRED_WIDTH/2-1), SHRED_WIDTH/2,
+				mount_top, 2, SHRED_WIDTH/2, 1, STONE);
+		}
+		//east bridge
+		if ( SHRED_MOUNTAIN==TypeOfShred(longitude, latitude+1) ) {
+			NormalCube(SHRED_WIDTH/2, qrand()%(SHRED_WIDTH/2-1),
+				mount_top, SHRED_WIDTH/2, 2, 1, STONE);
+		}
+		//water pool
+		if ( !(qrand()%10) ) {
+			fprintf(stderr, "pool\n");
+			for (i=1; i<SHRED_WIDTH/2-1; ++i)
+			for (j=1; j<SHRED_WIDTH/2-1; ++j)
+			for (ushort k=mount_top-3; k<=mount_top; ++k) {
+				SetNewBlock(LIQUID, WATER, i, j, k);
+			}
+		}
+		//cavern
+		//if ( !(qrand()%10) ) {
+			NormalCube(SHRED_WIDTH/4-2, SHRED_WIDTH/4-2,
+				HEIGHT/2+1, 4, 4, 3, AIR);
+			const int entries=qrand()%15+1;
+			if ( entries & 1 ) { // north entry
+				NormalCube(SHRED_WIDTH/4-1, 0, HEIGHT/2+1,
+					2, 2, 2, AIR);
+			}
+			if ( entries & 2 ) { // east entry
+				NormalCube(SHRED_WIDTH/2-4, SHRED_WIDTH/4-1,
+					HEIGHT/2+1, 2, 2, 2, AIR);
+			}
+			if ( entries & 4 ) { // south entry
+				NormalCube(SHRED_WIDTH/4-1, SHRED_WIDTH/2-2,
+					HEIGHT/2+1, 2, 2, 2, AIR);
+			}
+			if ( entries & 8 ) { // west entry
+				NormalCube(0, SHRED_WIDTH/4-1, HEIGHT/2+1,
+					2, 2, 2, AIR);
+			}
+		//}
+	}
 	PlantGrass();
+} //Shred::Mountain
+
+void Shred::NormalCube(
+		const ushort x_start,
+		const ushort y_start,
+		const ushort z_start,
+		const ushort x_size,
+		const ushort y_size,
+		const ushort z_size,
+		const int sub)
+{
+	for (ushort i=x_start; i<x_start+x_size; ++i)
+	for (ushort j=y_start; j<y_start+y_size; ++j)
+	for (ushort k=z_start; k<z_start+z_size; ++k) {
+		if ( InBounds(i, j, k) ) {
+			PutNormalBlock(sub, i, j, k);
+		}
+	}
 }
 
 void Shred::Desert() {
@@ -871,8 +949,7 @@ void Shred::Desert() {
 	}
 }
 
-bool Shred::Tree(
-		const ushort x, const ushort y, const ushort z,
+bool Shred::Tree(const ushort x, const ushort y, const ushort z,
 		const ushort height)
 {
 	if (
@@ -899,18 +976,10 @@ bool Shred::Tree(
 		PutNormalBlock(WOOD, x+1, y+1, z-1);
 	}
 	//branches
-	if ( qrand()%2 ) {
-		PutNormalBlock(WOOD, x,   y+1, z+height/2, WEST);
-	}
-	if ( qrand()%2 ) {
-		PutNormalBlock(WOOD, x+2, y+1, z+height/2, EAST);
-	}
-	if ( qrand()%2 ) {
-		PutNormalBlock(WOOD, x+1, y, z+height/2, NORTH);
-	}
-	if ( qrand()%2 ) {
-		PutNormalBlock(WOOD, x+1, y+2, z+height/2, SOUTH);
-	}
+	if ( qrand()%2 ) SetNewBlock(BLOCK, WOOD, x,   y+1, z+height/2, WEST);
+	if ( qrand()%2 ) SetNewBlock(BLOCK, WOOD, x+2, y+1, z+height/2, EAST);
+	if ( qrand()%2 ) SetNewBlock(BLOCK, WOOD, x+1, y,   z+height/2, NORTH);
+	if ( qrand()%2 ) SetNewBlock(BLOCK, WOOD, x+1, y+2, z+height/2, SOUTH);
 	//leaves
 	for (i=x; i<=x+2; ++i)
 	for (j=y; j<=y+2; ++j)
@@ -920,4 +989,8 @@ bool Shred::Tree(
 		}
 	}
 	return true;
+} //Shred::Tree
+
+bool Shred::InBounds(const ushort x, const ushort y, const ushort z) const {
+	return ( x<SHRED_WIDTH && y<SHRED_WIDTH && z && z<HEIGHT-1 );
 }

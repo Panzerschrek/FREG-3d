@@ -1,7 +1,7 @@
 /****************************************************************************
 ** Meta object code from reading C++ file 'screen.h'
 **
-** Created: Thu 30. May 19:10:49 2013
+** Created: Fri 12. Jul 15:28:40 2013
 **      by: The Qt Meta Object Compiler version 63 (Qt 4.8.3)
 **
 ** WARNING! All changes made in this file will be lost!
@@ -101,7 +101,7 @@ static const uint qt_meta_data_Screen[] = {
        6,       // revision
        0,       // classname
        0,    0, // classinfo
-      15,   14, // methods
+      16,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -117,15 +117,16 @@ static const uint qt_meta_data_Screen[] = {
       62,   56,    7,    7, 0x0a,
       92,    7,    7,    7, 0x0a,
      108,    7,    7,    7, 0x0a,
-     119,    7,    7,    7, 0x0a,
-     143,  140,    7,    7, 0x0a,
-     196,    7,    7,    7, 0x0a,
-     212,  208,    7,    7, 0x0a,
-     222,    7,    7,    7, 0x0a,
-     237,    7,    7,    7, 0x0a,
-     261,  252,    7,    7, 0x0a,
-     303,    7,    7,    7, 0x0a,
-     314,    7,    7,    7, 0x0a,
+     127,    7,  119,    7, 0x0a,
+     151,  148,    7,    7, 0x0a,
+     204,    7,    7,    7, 0x0a,
+     220,  216,    7,    7, 0x0a,
+     230,    7,    7,    7, 0x0a,
+     245,    7,    7,    7, 0x0a,
+     269,  260,    7,    7, 0x0a,
+     311,    7,    7,    7, 0x0a,
+     322,    7,    7,    7, 0x0a,
+     332,    7,    7,    7, 0x0a,
 
        0        // eod
 };
@@ -134,13 +135,13 @@ static const char qt_meta_stringdata_Screen[] = {
     "Screen\0\0ExitReceived()\0,\0"
     "InputReceived(int,int)\0Print()\0x,y,z\0"
     "PlayerMoved(long,long,ushort)\0"
-    "Notify(QString)\0CleanAll()\0"
+    "Notify(QString)\0CleanAll()\0QString\0"
     "PassString(QString&)\0,,\0"
     "Update(unsigned short,unsigned short,unsigned short)\0"
     "UpdateAll()\0dir\0Move(int)\0UpdatePlayer()\0"
     "UpdateAround()\0,,,range\0"
     "UpdateAround(ushort,ushort,ushort,ushort)\0"
-    "Flushinp()\0RePrint()\0"
+    "Flushinp()\0RePrint()\0UpdatesEnd()\0"
 };
 
 void Screen::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
@@ -155,7 +156,8 @@ void Screen::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void
         case 3: _t->PlayerMoved((*reinterpret_cast< long(*)>(_a[1])),(*reinterpret_cast< long(*)>(_a[2])),(*reinterpret_cast< ushort(*)>(_a[3]))); break;
         case 4: _t->Notify((*reinterpret_cast< const QString(*)>(_a[1]))); break;
         case 5: _t->CleanAll(); break;
-        case 6: _t->PassString((*reinterpret_cast< QString(*)>(_a[1]))); break;
+        case 6: { QString _r = _t->PassString((*reinterpret_cast< QString(*)>(_a[1])));
+            if (_a[0]) *reinterpret_cast< QString*>(_a[0]) = _r; }  break;
         case 7: _t->Update((*reinterpret_cast< const unsigned short(*)>(_a[1])),(*reinterpret_cast< const unsigned short(*)>(_a[2])),(*reinterpret_cast< const unsigned short(*)>(_a[3]))); break;
         case 8: _t->UpdateAll(); break;
         case 9: _t->Move((*reinterpret_cast< const int(*)>(_a[1]))); break;
@@ -164,6 +166,7 @@ void Screen::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void
         case 12: _t->UpdateAround((*reinterpret_cast< const ushort(*)>(_a[1])),(*reinterpret_cast< const ushort(*)>(_a[2])),(*reinterpret_cast< const ushort(*)>(_a[3])),(*reinterpret_cast< const ushort(*)>(_a[4]))); break;
         case 13: _t->Flushinp(); break;
         case 14: _t->RePrint(); break;
+        case 15: _t->UpdatesEnd(); break;
         default: ;
         }
     }
@@ -201,9 +204,9 @@ int Screen::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 15)
+        if (_id < 16)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 15;
+        _id -= 16;
     }
     return _id;
 }

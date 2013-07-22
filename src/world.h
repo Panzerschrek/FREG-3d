@@ -18,7 +18,6 @@
 #ifndef WORLD_H
 #define WORLD_H
 
-#include <cmath>
 #include <QReadWriteLock>
 #include <QThread>
 #include <QByteArray>
@@ -27,21 +26,10 @@
 
 class QTextStream;
 class Block;
-class Dwarf;
-class Inventory;
-class Active;
 class Shred;
+class DeferredAction;
 
-enum deferred_actions {
-	DEFERRED_NOTHING,
-	DEFERRED_MOVE,
-	DEFERRED_JUMP,
-	DEFERRED_BUILD,
-	DEFERRED_DAMAGE,
-	DEFERRED_THROW
-}; //enum deferred_actions
-
-const ushort safe_fall_height=5;
+const ushort SAFE_FALL_HEIGHT=5;
 
 const uchar MOON_LIGHT_FACTOR=1;
 const uchar  SUN_LIGHT_FACTOR=8;
@@ -49,7 +37,7 @@ const uchar  SUN_LIGHT_FACTOR=8;
 class World : public QThread {
 	Q_OBJECT
 
-	static const ushort time_steps_in_sec=10;
+	static const ushort TIME_STEPS_IN_SEC=10;
 
 	ulong time;
 	ushort timeStep;
@@ -59,6 +47,7 @@ class World : public QThread {
 	long spawnLongi, spawnLati;
 	const QString worldName;
 	ushort numShreds; //size of loaded zone
+	ushort maxXY; //for InBounds optimization
 	ushort numActiveShreds; //size of active zone
 	QReadWriteLock rwLock;
 
@@ -75,38 +64,20 @@ class World : public QThread {
 	ushort newX, newY, newZ;
 	volatile bool toReSet;
 
-	ushort deferredActionX;
-	ushort deferredActionY;
-	ushort deferredActionZ;
-	ushort deferredActionXFrom;
-	ushort deferredActionYFrom;
-	ushort deferredActionZFrom;
-	quint8 deferredActionDir;
-	Block * deferredActionWhat;
-	Block * deferredActionWho;
-	int deferredActionData1;
-	int deferredActionData2;
-	int deferredActionType;
-
 	uchar sunMoonFactor;
 
 	QSettings settings;
 	QSettings game_settings;
 
-	void ReplaceWithNormal(ushort x, ushort y, ushort z);
-	Block * ReplaceWithNormal(Block * block);
-	void MakeSun();
-	void RemSun();
-	void LoadAllShreds();
-	void SaveAllShreds();
-
-	protected:
-	void run();
+	QList<DeferredAction *> defActions;
 
 	//block work section
 	public:
 	Block * GetBlock(ushort x, ushort y, ushort z) const;
 	Shred * GetShred(ushort i, ushort j) const;
+
+	void AddDeferredAction(DeferredAction *);
+	void RemDeferredAction(DeferredAction *);
 	private:
 	///Puts block to coordinates xyz and activates it.
 	void SetBlock(Block * block, ushort x, ushort y, ushort z);
@@ -114,8 +85,13 @@ class World : public QThread {
 	void PutBlock(Block * block, ushort x, ushort y, ushort z);
 	///Puts normal block to coordinates.
 	void PutNormalBlock(subs sub, ushort x, ushort y, ushort z);
-	static Block * Normal(int sub, int dir=UP);
+	static Block * Normal(int sub);
+	static Block * NewBlock(int kind, int sub);
 	static void DeleteBlock(Block * block);
+	Block * ReplaceWithNormal(Block * block) const;
+
+	void MakeSun();
+	void RemSun();
 
 	//lighting section
 	public:
@@ -126,8 +102,8 @@ class World : public QThread {
 
 
 	uchar LightMap(ushort x, ushort y, ushort z) const;
-	private:
-	bool SetLightMap(uchar level, ushort x, ushort y, ushort z);
+	private:bool SetSunLightMap(uchar level, ushort x, ushort y, ushort z);
+	bool SetFireLightMap(uchar level, ushort x, ushort y, ushort z);
 
 	void ReEnlighten(ushort i, ushort j, ushort k);
 	void ReEnlightenAll();
@@ -135,19 +111,25 @@ class World : public QThread {
 	///Called from World::ReloadShreds(int), enlighens only need shreds.
 	void ReEnlightenMove(int direction);
 
-	void SunShine(ushort i, ushort j);
+	void SunShine(ushort x, ushort y);
+	void UpShine(ushort x, ushort y, ushort z_bottom);
+	public:
+	///If init is false, light will not spread from non-invisible blocks.
 	void Shine(ushort x, ushort y, ushort z, uchar level, bool init=false);
 
 	//information section
 	public:
 	QString WorldName() const;
-	int Focus(ushort x, ushort y, ushort z,
+	///True on error, false if focus is received to _targ successfully.
+	bool Focus(ushort x, ushort y, ushort z,
 			ushort & x_targ, ushort & y_targ, ushort & z_targ,
 			quint8 dir) const;
-	int Focus(ushort x, ushort y, ushort z,
+	private:
+	bool Focus(ushort x, ushort y, ushort z,
 			ushort & x_targ,
 			ushort & y_targ,
 			ushort & z_targ) const;
+	public:
 	ushort NumShreds() const;
 	ushort NumActiveShreds() const;
 	static quint8 TurnRight(quint8 dir);
@@ -163,12 +145,6 @@ class World : public QThread {
 	long MapSize() const;
 	QTextStream * MapStream();
 	ushort SunMoonX() const;
-	quint8 MakeDir(
-			ushort x_cent, ushort y_cent,
-			ushort x_targ, ushort y_targ) const;
-	float Distance(
-			ushort x_from, ushort y_from, ushort z_from,
-	                ushort x_to,   ushort y_to,   ushort z_to) const;
 
 	//visibility section
 	public:
@@ -189,9 +165,9 @@ class World : public QThread {
 	//movement section
 	public:
 	///Check and move
-	int Move(ushort x, ushort y, ushort z, quint8 dir);
+	bool Move(ushort x, ushort y, ushort z, quint8 dir);
 	///This CAN move blocks, but not xyz block.
-	int CanMove(
+	bool CanMove(
 		ushort x,    ushort y,    ushort z,
 		ushort x_to, ushort y_to, ushort z_to,
 		quint8 dir);
@@ -199,81 +175,67 @@ class World : public QThread {
 		ushort x,    ushort y,    ushort z,
 		ushort x_to, ushort y_to, ushort z_to,
 		quint8 dir);
-	void Jump(ushort x, ushort y, ushort z);
 	void Jump(ushort x, ushort y, ushort z, quint8 dir);
-	///Set action that will be executed at start of next physics turn.
-	/**It is needed by graphics screen to reduce execution time of
-	 * player's actions.
-	 * If several actions are set during one physics turn,
-	 * only the last will be done.
-	 */
-	void SetDeferredAction(ushort x, ushort y, ushort z,
-			quint8 dir,
-			int action,
-			ushort x_from=0, ushort y_from=0, ushort z_from=0,
-			Block * what=0, Block * who=0,
-			int data1=0, int data2=0);
 
 	//time section
 	public:
 	times_of_day PartOfDay() const;
 	///This returns seconds from start of current day.
 	int TimeOfDay() const;
+	///Returns time in seconds since world creation.
 	ulong Time() const;
+	QString TimeOfDayStr() const;
+	///Returns number of physics steps since second start.
 	ushort MiniTime() const;
 
 	//interactions section
 	public:
-	bool Damage(ushort x, ushort y, ushort z,
-			ushort level=1, int dmg_kind=CRUSH);
-	int Use(ushort x, ushort y, ushort z);
-	int Build(Block * thing,
+	void Damage(ushort x, ushort y, ushort z, ushort level, int dmg_kind);
+	void DestroyAndReplace(ushort x, ushort y, ushort z);
+	bool Build(Block * thing,
 			ushort x, ushort y, ushort z,
 			quint8 dir=UP,
 			Block * who=0,
 			bool anyway=false);
 	void Inscribe(ushort x, ushort y, ushort z);
+	///No bounds checks inside, use carefully.
 	void Eat(ushort i, ushort j, ushort k,
 			ushort i_food, ushort j_food, ushort k_food);
 
 	//inventory functions section
 	private:
 	void Exchange(
-			ushort i_from, ushort j_from, ushort k_from,
-			ushort i_to,   ushort j_to,   ushort k_to,
-			ushort src, ushort dest,
-			ushort num);
+			Block * block_from, Block * block_to,
+			ushort src, ushort dest, ushort num);
 	public:
-	void Drop(ushort x, ushort y, ushort z,
+	void Drop(Block * from,
+			ushort x_to, ushort y_to, ushort z_to,
 			ushort src, ushort dest, ushort num);
-	void Get(ushort x, ushort y, ushort z,
+	void Get(Block * to,
+			ushort x_from, ushort y_from, ushort z_from,
 			ushort src, ushort dest, ushort num);
-	int GetAll(ushort x_to, ushort y_to, ushort z_to);
+	void GetAll(ushort x_to, ushort y_to, ushort z_to);
 
 	//block information section
 	public:
-	bool InBounds(ushort i, ushort j, ushort k=0) const;
-	QString & FullName(QString &, ushort x, ushort y, ushort z) const;
-	int Transparent(ushort x, ushort y, ushort z) const;
-	int Durability(ushort x, ushort y, ushort z) const;
-	int Kind(ushort x, ushort y, ushort z) const;
-	int Sub (ushort x, ushort y, ushort z) const;
-	int Movable(ushort x, ushort y, ushort z) const;
-	ushort Weight(ushort x, ushort y, ushort z) const;
-	uchar LightRadius(ushort x, ushort y, ushort z) const;
-	Inventory * HasInventory(ushort x, ushort y, ushort z) const;
+	//For more information, use World::GetBlock(x, y, z) and ->.
+	bool InBounds   (ushort x, ushort y, ushort z=0) const;
+	int  Transparent(ushort x, ushort y, ushort z) const;
+	int  Sub        (ushort x, ushort y, ushort z) const;
+	int  Temperature(ushort x, ushort y, ushort z) const;
 
-	Active * ActiveBlock(ushort x, ushort y, ushort z) const;
-
-	QString & GetNote(QString &, ushort x, ushort y, ushort z) const;
-	int Temperature(ushort x, ushort y, ushort z) const;
-
+	//world section
+	public:
 	void ReloadAllShreds(long lati, long longi,
 		ushort new_x, ushort new_y, ushort new_z,
 		ushort new_num_shreds);
 	void SetNumActiveShreds(ushort num);
-
 	private:
+	///Also saves all shreds.
+	void DeleteAllShreds();
+	void LoadAllShreds();
+	void run();
+
 	friend class Shred;
 
 	public:

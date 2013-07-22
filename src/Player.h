@@ -15,38 +15,35 @@
 	*along with FREG. If not, see <http://www.gnu.org/licenses/>.
 	*/
 
-/** \class Player Player.h
- * \brief This class contains information specific to player
- * and interface for manipulating him.
- *
- * It receives input from screen, processes it, and dispatches
- * actions to world.
- *
- * It loads player from file and saves him to it.
- *
- * Note: player block with its inventory is stored it shred
- * file with all other blocks. player_save contains only
- * coordinates where player is, his home coordinates and world
- * player belongs to.
- *
- * Also it does checks for player walking over the shred border.
- */
-
 #ifndef PLAYER_H
 #define PLAYER_H
 
-#include "header.h"
 #include <QObject>
 
 class QString;
 class World;
 class Block;
 class Active;
-class Animal;
 class Inventory;
 class Shred;
 
 class Player : public QObject {
+	/** \class Player Player.h
+	 * \brief This class contains information specific to player
+	 * and interface for manipulating him.
+	 *
+	 * It receives input from screen, processes it, and dispatches
+	 * actions to world.
+	 *
+	 * It loads player from file and saves him to it.
+	 *
+	 * Note: player block with its inventory is stored it shred
+	 * file with all other blocks. player_save contains only
+	 * coordinates where player is, his home coordinates and world
+	 * player belongs to.
+	 *
+	 * Also it does checks for player walking over the shred border.
+	 */
 	Q_OBJECT
 
 	long homeLongi, homeLati;
@@ -64,6 +61,7 @@ class Player : public QObject {
 
 	void UpdateXYZ();
 	Shred * GetShred() const;
+	World * GetWorld() const;
 
 	public slots:
 
@@ -80,7 +78,7 @@ class Player : public QObject {
 	 * It emits OverstepBorder(int) signal when player walks
 	 * over the shred border.
 	 */
-	void CheckOverstep(int);
+	void CheckOverstep(int dir);
 
 	///This is called when player block is destroyed.
 	void BlockDestroy();
@@ -108,22 +106,31 @@ class Player : public QObject {
 
 	public:
 	///This returns current player block X (coordinates in loaded zone)
-	ushort X() const;
+	short X() const;
 	///This returns current player block Y (coordinates in loaded zone)
-	ushort Y() const;
+	short Y() const;
 	///This returns current player block Z (coordinates in loaded zone)
-	ushort Z() const;
+	short Z() const;
 	long GlobalX() const;
 	long GlobalY() const;
 
+	///If player is not dwarf, false is always returned.
+	bool   IsRightActiveHand() const;
+	///If player is not dwarf, 0 is returned.
+	ushort GetActiveHand() const;
+	///If player is not dwarf, does nothing.
+	void   SetActiveHand(bool right);
+
 	///This returns current player direction (see enum dirs in header.h)
-	int Dir() const;
+	int GetDir() const;
 
 	///This returns player hitpoints, also known as durability.
 	short HP() const;
 	///This returns player breath reserve.
 	short Breath() const;
 	short Satiation() const;
+	///Can be > 100 if player is gorged. When player is not animal, 50.
+	ushort SatiationPercent() const;
 
 	///This returns player block itself.
 	Active * GetP() const;
@@ -132,18 +139,15 @@ class Player : public QObject {
 	bool Visible(ushort x, ushort y, ushort z) const;
 	void Focus(ushort & x, ushort & y, ushort & z) const;
 
-	///This returns block which is now used by player.
-	/** See enum usage_types in header.h. */
-	Block * UsingBlock() const;
-
 	///This returns how player is using something now.
 	/** See enum usage_types in header.h. */
 	int UsingType() const;
-
-	//This returns how player is using himself.
-	/** For example, OPEN means he is looking in his backpack. */
+	///This returns how player is using himself.
+	/** For example, OPEN means he is looking in his backpack.
+	 *  See enum usage_types in header.h. */
 	int UsingSelfType() const;
 
+	///Returns 0 if there is no inventory, otherwise returns inventory.
 	Inventory * PlayerInventory();
 
 	long GetLongitude() const;
@@ -152,23 +156,27 @@ class Player : public QObject {
 	bool GetCreativeMode() const;
 	void SetCreativeMode(bool turn);
 
-	void Turn(int dir);
+	void SetDir(int dir);
 	void Move(int dir);
 	void Jump();
 
+	///Closes backpack, chests, etc.
+	void StopUseAll();
 	///Tries to switch usingSelfType from NO to OPEN.
 	void Backpack();
 	void Inscribe(short x, short y, short z) const;
 	void Examine(short x, short y, short z) const;
 	void Damage(short x, short y, short z) const;
 	void Use(short x, short y, short z);
+	///Tries to throw (drop out) block number num from inventory.
+	void Throw (short x, short y, short z,
+			ushort src, ushort dest=0, ushort num=1);
 
 	///Tries to use block number num in inventory.
 	void Use(ushort num);
-	///Tries to throw (drop out) block number num from inventory.
-	void Throw (ushort src, ushort dest=0, ushort num=1);
 	///Tries to get block number num from outer inventory.
-	void Obtain(ushort src, ushort dest=0, ushort num=1);
+	void Obtain(short x, short y, short z,
+			ushort src, ushort dest=0, ushort num=1);
 	///Returns true if wielding successful.
 	bool Wield   (ushort num);
 	void Inscribe(ushort num);
@@ -182,12 +190,13 @@ class Player : public QObject {
 
 	private:
 	void InnerMove(ushort num_from, ushort num_to, ushort num=1);
+	///Checks player existence, inventory existence, size limits,
+	///block existence.
 	Block * ValidBlock(ushort num) const;
 	int DamageKind() const;
 	ushort DamageLevel() const;
 	void Get(Block *);
 	Block * Drop(ushort);
-	void Dir(int dir);
 
 	public:
 	void SetNumShreds(ushort num) const;
@@ -201,6 +210,6 @@ class Player : public QObject {
 
 	///Destructor calls Player::CleanAll().
 	~Player();
-}; //Player
+}; //class Player
 
 #endif

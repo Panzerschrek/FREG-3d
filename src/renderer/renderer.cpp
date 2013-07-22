@@ -309,6 +309,7 @@ void r_Renderer::DrawSun()
 
 void r_Renderer::DrawRain()
 {
+    glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
     float time= float(world->Time() % SECONDS_IN_DAY) / float(SECONDS_IN_HOUR);
     if( !(time > 12.0f && time < 15.0f ) )
         return;
@@ -476,6 +477,23 @@ void r_Renderer::DrawHUD()
 
 }
 
+
+void r_Renderer::DrawConsole()
+{
+    if( console_string[0] == 0 )
+        return;
+    m_Vec3 p;
+    p.x= -1.0f;
+    m_Vec3 c( 0.8f, 0.8f, 0.8f );
+    p.y= 1.0f - float( DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y );
+    p.x= AddTextUnicode( p.x, p.y, &c, 1.0f, console_string ).x;
+
+    if( (last_frame_time / 300 ) & 1 )
+    {
+    quint16 space[]= { '_', 0 };
+    AddTextUnicode( p.x, p.y, &c, 1.0f, space );
+    }
+}
 void r_Renderer::DrawMap()
 {
     m_Vec3 p( 0.0f, 0.0f, 0.0f );
@@ -566,7 +584,7 @@ void r_Renderer::DrawBuildCube()
 void r_Renderer::DrawInventory()
 {
     //current menu width: player - 33 symbols, inventory - 27 stmbols
-    if( player->UsingSelfType() != OPEN )
+    if( player->UsingSelfType() != USAGE_TYPE_OPEN )
         return;
 
     bool is_one_empty_slot= false;
@@ -625,7 +643,7 @@ void r_Renderer::DrawInventory()
             text_color= primary_text_color;
 
         p= AddText( p.x, p.y, &text_color, 1, player_gibs_format_str[i],
-                    inv->InvFullName(str, i).toLocal8Bit().constData(),
+                    inv->InvFullName(i).toLocal8Bit().constData(),
                     inv->Number(i), 7, 1, inv->GetInvWeight(i) );
 
     }
@@ -644,7 +662,7 @@ void r_Renderer::DrawInventory()
         num= inv->Number( i );
 
         p= AddText( p.x, p.y, &text_color, 1, format_str,
-                    inv->InvFullName(str, i).toLocal8Bit().constData(),
+                    inv->InvFullName(i).toLocal8Bit().constData(),
                     num, 7, 1, inv->GetInvWeight(i) );
 
     }
@@ -654,7 +672,14 @@ void r_Renderer::DrawInventory()
 
 show_inventory_block:
 
-    inv= player->UsingBlock()->HasInventory();
+    Block* inv_block;
+    if( using_position.z >= 0 )
+    inv= (inv_block= world->GetBlock( ushort( using_position.x ),
+                         ushort( using_position.y ),
+                         ushort( using_position.z ) )
+                         )->HasInventory(); //player->UsingBlock()->HasInventory();HACK!!!
+    else
+        inv= NULL;
     if( inv == NULL )
         return;
 
@@ -669,7 +694,7 @@ show_inventory_block:
     //inventory name
     p= AddText( ( 2 + PLAYER_INVENTORY_WIDTH ) * 2.0f * float( DEFAULT_FONT_WIDTH )/ float(viewport_x) - 1.0f,
                 0.5f + 3.0f * float(DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y ),
-                &primary_text_color, 1,"%s\n", inv->FullName(str).toLocal8Bit().constData() );
+                &primary_text_color, 1,"%s\n", inv_block->FullName().toLocal8Bit().constData() );
     //inventory head
     p= AddText( p.x, p.y, &primary_text_color, 1, right_top_format_str, "" );
     //inventory body
@@ -686,7 +711,7 @@ show_inventory_block:
         num= inv->Number(i);
 
         p= AddText( p.x, p.y, &text_color, 1, right_format_str,
-                    inv->InvFullName(str, i).toLocal8Bit().constData(), num, 7, 1, inv->GetInvWeight(i) );
+                    inv->InvFullName(i).toLocal8Bit().constData(), num, 7, 1, inv->GetInvWeight(i) );
 
     }
     //weight string
@@ -926,6 +951,7 @@ void r_Renderer::Draw()
     DrawInventory();
     DrawMap();
     DrawCursor();
+    DrawConsole();
     glEnable( GL_BLEND );
     DrawText();
     glDisable( GL_BLEND );
@@ -2882,6 +2908,23 @@ void r_Renderer::MoveMap( int dir )
 }
 
 
+void r_Renderer::SetConsoleComandString( char* str )
+{
+    if( str == NULL )
+    {
+        console_string[0]= 0;
+        return;
+    }
+
+    console_string[0]= '>';
+    unsigned int i=1;
+    while( *str )
+    {
+        console_string[i++]= quint16( *str );
+        str++;
+    }
+    console_string[i]= 0;
+}
 
 void r_Renderer::AddNotifyString( const QString& str )
 {

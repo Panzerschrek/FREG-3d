@@ -49,6 +49,10 @@
 #define FREG_KEY_JUMP           Qt::Key_Space
 #define FREG_KEY_CROUCH         Qt::Key_C
 
+#ifndef FREG_CONSOLE_BUFFER_LEN
+#define FREG_CONSOLE_BUFFER_LEN 256
+#define FREG_CONSOLE_MEMORY_LINES 4
+#endif//aslo defined in renderer.h
 
 class World;
 class Player;
@@ -110,9 +114,9 @@ private slots:
 
 public slots:
 	void PlayerMoved( long x, long y, ushort z );
-    void Notify(const QString&);
+    void Notify(const QString&) const;
     void CleanAll();
-    QString& PassString(QString &) const;
+    QString PassString(QString &) const;
     void Update(
         const unsigned short,
         const unsigned short,
@@ -137,6 +141,7 @@ public slots:
     {
 
     }
+    void UpdatesEnd(){}
 
 signals:
     void ExitReceived();
@@ -167,7 +172,12 @@ private://Panzerschrek
     QCursor cursor;
 
     bool keys[ 512 ];//для хранения состояния клавиш
+    bool shift_pressed;
     bool use_mouse, is_focus;
+    bool console_opened;
+    unsigned int current_console_line;
+    char console_buffer[ FREG_CONSOLE_MEMORY_LINES + 1 ][ FREG_CONSOLE_BUFFER_LEN ];
+    unsigned int console_buffer_pos;
 
     void GetBuildCoord();
 
@@ -175,8 +185,9 @@ public:
     void InputTick();
 private:
 
-    m_Vec3 cam_pos, cam_ang, build_pos, player_global_pos;
+    m_Vec3 cam_pos, cam_ang, build_pos, player_global_pos, using_block_pos;
     short build_x, build_y, build_z;
+    short using_block_x, using_block_y, using_block_z;
     bool free_look;
     float cam_lag;
 

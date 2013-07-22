@@ -36,10 +36,16 @@ class Shred {
 	const long longitude, latitude;
 	ushort shredX, shredY;
 
+	//needed in Shred::ReloadTo... for active blocks not to reload twice
+	//when they are registered both in frequent and rare lists.
 	QList<Active *> activeListAll;
 	QList<Active *> activeListFrequent;
 	QList<Active *> activeListRare;
 	QList<Active *> fallList;
+	QList<Active *> shiningList;
+
+	///Lowest nullstone and sky are not in bounds.
+	bool InBounds(ushort x, ushort y, ushort z) const;
 
 	public:
 	///Returns y (line) shred coordinate on world map.
@@ -56,6 +62,8 @@ class Shred {
 	void AddFalling(Active *);
 	void RemFalling(Active *);
 	void AddFalling(ushort x, ushort y, ushort z);
+	void AddShining(Active *);
+	void RemShining(Active *);
 
 	World * GetWorld() const;
 
@@ -70,11 +78,12 @@ class Shred {
 	///Puts block to coordinates, not activates it (e.g. in World::Move)
 	void PutBlock(Block * block, ushort x, ushort y, ushort z);
 	///Puts normal block to coordinates
-	void PutNormalBlock(int sub, ushort x, ushort y, ushort z, int dir=UP);
-	static Block * Normal(int sub, int dir=UP);
+	void PutNormalBlock(int sub, ushort x, ushort y, ushort z);
+	static Block * Normal(int sub);
 
 	uchar LightMap(ushort x, ushort y, ushort z) const;
-	bool SetLightMap(uchar level, ushort x, ushort y, ushort z);
+	bool SetSunLightMap(uchar level, ushort x, ushort y, ushort z);
+	bool SetFireLightMap(uchar level, ushort x, ushort y, ushort z);
 	void SetAllLightMap(uchar level);
 	void ShineAll();
 
@@ -86,14 +95,15 @@ class Shred {
 	ushort Weight(ushort x, ushort y, ushort z) const;
 	uchar LightRadius(ushort x, ushort y, ushort z) const;
 
-	int LoadShred(QFile &);
+	bool LoadShred(QFile &);
 
 	Shred(World *,
 			ushort shred_x, ushort shred_y,
 			long longi, long lati);
 	~Shred();
 
-	void SetNewBlock(int kind, int sub, ushort x, ushort y, ushort z);
+	void SetNewBlock(int kind, int sub, ushort x, ushort y, ushort z,
+			int dir=UP);
 	private:
 	void RegisterBlock(Block *, ushort x, ushort y, ushort z);
 
@@ -115,14 +125,18 @@ class Shred {
 	void TestShred();
 	void NullMountain();
 	void Plain();
-	void Forest(long, long);
-	void Water( long, long);
+	void Forest();
+	void Water();
 	void Pyramid();
 	void Mountain();
 	void Hill();
 	void Desert();
 	//block combinations section (trees, buildings, etc):
 	bool Tree(ushort x, ushort y, ushort z, ushort height);
+	private:
+	void NormalCube(ushort x_start, ushort y_start, ushort z_start,
+			ushort x_end, ushort y_end, ushort z_end,
+			int sub);
 
 	//land generation
 	private:
@@ -137,4 +151,5 @@ class Shred {
 	void AddWater();
 	ushort FlatUndeground(short depth=0);
 };//class Shred
+
 #endif

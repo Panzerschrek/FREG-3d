@@ -1,7 +1,7 @@
 /****************************************************************************
 ** Meta object code from reading C++ file 'VirtScreen.h'
 **
-** Created: Thu 30. May 19:10:49 2013
+** Created: Fri 12. Jul 15:28:40 2013
 **      by: The Qt Meta Object Compiler version 63 (Qt 4.8.3)
 **
 ** WARNING! All changes made in this file will be lost!
@@ -37,22 +37,22 @@ static const uint qt_meta_data_VirtScreen[] = {
       27,   11,   11,   11, 0x08,
       35,   11,   11,   11, 0x0a,
       51,   11,   11,   11, 0x0a,
-      62,   11,   11,   11, 0x0a,
-      89,   83,   11,   11, 0x0a,
-     118,   11,   11,   11, 0x0a,
-     130,   11,   11,   11, 0x0a,
-     140,   11,   11,   11, 0x0a,
-     167,  155,   11,   11, 0x0a,
-     209,   11,   11,   11, 0x0a,
-     224,   11,   11,   11, 0x0a,
-     237,   11,   11,   11, 0x0a,
+      70,   11,   62,   11, 0x0a,
+      97,   91,   11,   11, 0x0a,
+     126,   11,   11,   11, 0x0a,
+     138,   11,   11,   11, 0x0a,
+     148,   11,   11,   11, 0x0a,
+     175,  163,   11,   11, 0x0a,
+     217,   11,   11,   11, 0x0a,
+     232,   11,   11,   11, 0x0a,
+     245,   11,   11,   11, 0x0a,
 
        0        // eod
 };
 
 static const char qt_meta_stringdata_VirtScreen[] = {
     "VirtScreen\0\0ExitReceived()\0Print()\0"
-    "Notify(QString)\0CleanAll()\0"
+    "Notify(QString)\0CleanAll()\0QString\0"
     "PassString(QString&)\0x,y,z\0"
     "Update(ushort,ushort,ushort)\0UpdateAll()\0"
     "Move(int)\0UpdatePlayer()\0x,y,z,range\0"
@@ -70,7 +70,8 @@ void VirtScreen::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         case 1: _t->Print(); break;
         case 2: _t->Notify((*reinterpret_cast< const QString(*)>(_a[1]))); break;
         case 3: _t->CleanAll(); break;
-        case 4: _t->PassString((*reinterpret_cast< QString(*)>(_a[1]))); break;
+        case 4: { QString _r = _t->PassString((*reinterpret_cast< QString(*)>(_a[1])));
+            if (_a[0]) *reinterpret_cast< QString*>(_a[0]) = _r; }  break;
         case 5: _t->Update((*reinterpret_cast< ushort(*)>(_a[1])),(*reinterpret_cast< ushort(*)>(_a[2])),(*reinterpret_cast< ushort(*)>(_a[3]))); break;
         case 6: _t->UpdateAll(); break;
         case 7: _t->Move((*reinterpret_cast< int(*)>(_a[1]))); break;

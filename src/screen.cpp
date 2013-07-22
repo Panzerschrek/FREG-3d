@@ -108,7 +108,7 @@ void FREGGLWidget::focusInEvent( QFocusEvent* e )
 }
 
 
-QString& Screen::PassString(QString & str) const
+QString Screen::PassString(QString & str) const
 {
     return str;
 }
@@ -118,7 +118,7 @@ void Screen::Print()
 }
 
 
-void Screen::Notify(const QString& str)
+void Screen::Notify(const QString& str) const
 {
     //printf( "notify: %s\n", str.toLocal8Bit().constData() );
     renderer->AddNotifyString( str );
@@ -190,8 +190,13 @@ Screen::Screen(
     screen_width(1024), screen_height(768),
     startup_time( 0, 0 ),
     free_look( true ),
+    console_opened(false),
+    console_buffer_pos(0),
     cam_lag( 0.8f ),
-    cursor( Qt::BlankCursor )
+    cursor( Qt::BlankCursor ),
+    using_block_z(-42),
+    using_block_y(0),
+    using_block_x(0)
 {
     renderer= new r_Renderer( wor,pl, screen_width, screen_height );
     QGLFormat format;
@@ -249,6 +254,7 @@ Screen::Screen(
     for( unsigned int i= 0; i< 512; i++ )
         keys[i]= false;
     use_mouse= false;
+    shift_pressed= false;
 
     //current_screen= this;
 
@@ -271,6 +277,11 @@ Screen::Screen(
     player_global_pos.x= float( player->GlobalX() ) - 0.5f;
     player_global_pos.y= float( player->GlobalY() ) - 0.5f;
     player_global_pos.z= float( player->Z() ) + 0.5f;
+
+
+    for( unsigned int i=0; i< FREG_CONSOLE_MEMORY_LINES + 1; i++ )
+        for( unsigned int j=0; j< FREG_CONSOLE_BUFFER_LEN; j++ )
+            console_buffer[i][j]=0;
 
 }
 
@@ -402,7 +413,7 @@ void Screen::focusInEvent(QFocusEvent * e)
 
 void Screen::mousePressEvent(QMouseEvent * e)
 {
-    if( player->UsingSelfType() == OPEN )
+    if( player->UsingSelfType() == USAGE_TYPE_OPEN )//inventory mode
     {
         QPoint cur_local_pos= gl_widget->mapFromGlobal( cursor.pos() );
         int current_slot= ( cur_local_pos.y() + 3 * DEFAULT_FONT_HEIGHT - screen_height/2 + screen_height/4 )/
@@ -416,7 +427,7 @@ void Screen::mousePressEvent(QMouseEvent * e)
                  cur_local_pos.x()  < ( ( 2 + PLAYER_INVENTORY_WIDTH + INVENTORY_WIDTH ) * DEFAULT_FONT_WIDTH) )
         {
             Block* b;
-            b= player->UsingBlock();
+            b= w->GetBlock( using_block_x, using_block_y, using_block_z );
             if( b!= NULL )
                 inv= b->HasInventory();
             else
@@ -434,20 +445,24 @@ void Screen::mousePressEvent(QMouseEvent * e)
         {
             //левый край инвентаря - 4 пикселя 41 символ - ширина
 
-            if( inventory_drag && in_inventory )
+            if( inventory_drag && in_inventory )// когда объект поднят из инвентаря
             {
                 if( inv == player->GetP()->HasInventory() )
                 {
                     if( movable_in_player_inventory )
-                        player->MoveInsideInventory( movable_inv_slot_number, current_slot );
+                        player->MoveInsideInventory( movable_inv_slot_number, current_slot, shift_pressed ? 9 : 1 );
                     else
-                        player->Obtain( movable_inv_slot_number );
+                        player->Obtain( using_block_x, using_block_y, using_block_z,
+                                        movable_inv_slot_number, current_slot, shift_pressed ? 9 : 1  );
 
                 }
-                else if ( inv == player->UsingBlock()->HasInventory() )
+                else if ( inv == w->GetBlock( using_block_x, using_block_y, using_block_z )->HasInventory() )
                 {
                     if( movable_in_player_inventory )
-                        player->Throw( movable_inv_slot_number );
+                        player->Throw( using_block_x, using_block_y, using_block_z,
+                                       movable_inv_slot_number, current_slot, shift_pressed ? 9 : 1 );
+                    else
+                        inv->MoveInside( movable_inv_slot_number, current_slot, shift_pressed ? 9 : 1 );
 
                 }
                 renderer->SetActiveInventorySlot( 1024, false );
@@ -473,10 +488,6 @@ void Screen::mousePressEvent(QMouseEvent * e)
     }
     if( e->button() == Qt::RightButton )
     {
-        // QString s("give 0 6 1");
-        //player->ProcessCommand( s );
-        //int i=0;
-        // while(  player->GetP()->HasInventory()->Number(i) == 0 && i < 10 )i++;
         player->Build( build_x, build_y, build_z, 1 + active_hand );
     }
     else if( e->button() == Qt::LeftButton )
@@ -493,11 +504,75 @@ void Screen::mouseMoveEvent(QMouseEvent * e )
 }
 void Screen::keyPressEvent( QKeyEvent* e )
 {
-    QString s("give 6 12");
     int key= e->key();
+
+    if( console_opened )
+    {
+        if( key == Qt::Key_QuoteLeft )
+        {
+            console_opened= false;
+            renderer->SetConsoleComandString( NULL );
+            return;
+        }
+       // printf( "keyc: %d\n", key );
+        QString str;
+        unsigned int con_line= current_console_line % ( FREG_CONSOLE_MEMORY_LINES + 1 );
+        if( key == Qt::Key_Return )
+        {
+            player->ProcessCommand( str= QString( console_buffer[ con_line ] ) );
+            console_buffer_pos= 0, current_console_line++;
+            con_line= current_console_line % ( FREG_CONSOLE_MEMORY_LINES + 1 );
+            renderer->SetConsoleComandString( console_buffer[ con_line ] );
+        }
+        else if ( key == Qt::Key_Backspace )
+        {
+            if( console_buffer_pos >=1 )
+            {
+                console_buffer[ con_line ][ --console_buffer_pos ]=0;
+                renderer->SetConsoleComandString( console_buffer[ con_line ] );
+            }
+        }
+        else if( key == Qt::Key_Up )
+        {
+            current_console_line--;
+            con_line= current_console_line % ( FREG_CONSOLE_MEMORY_LINES + 1 );
+            renderer->SetConsoleComandString( console_buffer[ con_line ] );
+            console_buffer_pos= strlen( console_buffer[ con_line ] );
+        }
+        else if( key == Qt::Key_Down )
+        {
+            current_console_line++;
+            con_line= current_console_line % ( FREG_CONSOLE_MEMORY_LINES + 1 );
+            renderer->SetConsoleComandString( console_buffer[ con_line ] );
+            console_buffer_pos= strlen( console_buffer[ con_line ] );
+        }
+        else if( console_buffer_pos < FREG_CONSOLE_BUFFER_LEN - 2 )
+        {
+
+            str= e->text();
+            if( str.length() )
+            {
+            char c;
+            c= ((char*)str.data())[0];
+
+            console_buffer[ con_line ][ console_buffer_pos++ ]= c;
+            console_buffer[ con_line ][ console_buffer_pos ]= 0;
+
+            renderer->SetConsoleComandString( console_buffer[ con_line ] );
+            }
+        }
+
+        return;
+    }
+
+    if( key == Qt::Key_Shift )
+        shift_pressed= true;
     key= ( key & 0xff ) | ( key >> 16 );
     if( key < 512 )
         keys[ key ]= true;
+
+
+
     switch(key)
     {
 
@@ -526,7 +601,7 @@ void Screen::keyPressEvent( QKeyEvent* e )
 
     case Qt::Key_I:
         player->Backpack();
-        if( player->UsingSelfType() == OPEN )
+        if( player->UsingSelfType() == USAGE_TYPE_OPEN )
             use_mouse= false;
         else
             use_mouse= true;
@@ -537,10 +612,33 @@ void Screen::keyPressEvent( QKeyEvent* e )
         break;
 
     case Qt::Key_E:
-        player->ProcessCommand( s );
+        if( using_block_z == -42/*magic value - no block*/ )
+        {
+            GetBuildCoord();
+            using_block_x= build_x;
+            using_block_y= build_y;
+            using_block_z= build_z;
+            using_block_pos= m_Vec3( float(build_x),
+                                     float(build_y),
+                                     float(build_z) );
+            if( w->GetBlock( using_block_x, using_block_y, using_block_z )
+                    ->HasInventory() && player->UsingSelfType() != USAGE_TYPE_OPEN )
+                player->Backpack();
+        }
+        else
+            using_block_pos.z= float( using_block_z= -42 );
+
+        break;
+
+
+    case Qt::Key_QuoteLeft:
+        console_opened= true;
+        use_mouse= false;
+         renderer->SetConsoleComandString( console_buffer[ current_console_line % ( FREG_CONSOLE_MEMORY_LINES + 1 ) ] );
         break;
 
     default:
+       // printf( "key: %d\n", key );
         break;
     };
 }
@@ -551,6 +649,8 @@ void Screen::closeEvent(QCloseEvent *e)
 void Screen::keyReleaseEvent( QKeyEvent* e )
 {
     int key= e->key();
+    if( key == Qt::Key_Shift )
+        shift_pressed= false;
     key= ( key & 0xff ) | ( key >> 16 );
     if( key < 512 )
         keys[ key ]= false;
@@ -701,13 +801,13 @@ void Screen::InputTick()
         else if( last_time + dt_i - last_move_event_time > 1000 / w->TimeStepsInSec() )
         {
             if( cam_ang.z >	m_Math::FM_PI4 && cam_ang.z <= 3.0f * m_Math::FM_PI4 )
-                player->Turn( EAST );
+                player->SetDir( EAST );
             else if( cam_ang.z > 3.0f * m_Math::FM_PI4 && cam_ang.z <= 5.0f * m_Math::FM_PI4 )
-                player->Turn( SOUTH );
+                player->SetDir( SOUTH );
             else if( cam_ang.z > 5.0f * m_Math::FM_PI4 && cam_ang.z <= 7.0f * m_Math::FM_PI4 )
-                player->Turn( WEST );
+                player->SetDir( WEST );
             else if( cam_ang.z <= m_Math::FM_2PI || cam_ang.z <= m_Math::FM_PI4 )
-                player->Turn( NORTH );
+                player->SetDir( NORTH );
 
             player->Jump();
 
@@ -720,7 +820,7 @@ void Screen::InputTick()
             cam_pos.z-= dt * 0.025;
         else if( last_time + dt_i - last_move_event_time > 1000 / w->TimeStepsInSec() )
         {
-            player->Turn( DOWN );
+            player->SetDir( DOWN );
             player->Move( DOWN );
         }
     }
@@ -750,6 +850,7 @@ void Screen::InputTick()
     renderer->SetCamPosition( cam_pos );
     GetBuildCoord();
     renderer->SetBuildPosition( build_pos );
+    renderer->SetUsingPosition( using_block_pos );
 
     QPoint cur_window_pos= gl_widget->mapFromGlobal( cursor.pos() );
     if( !use_mouse )

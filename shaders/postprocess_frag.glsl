@@ -176,10 +176,7 @@ vec3 Soap()//"Ìûכüצמ" like on PS3
    c= texture( scene_buffer, tc2 ).xyz;
 #endif
 	float depth=  length( vec3( f_screen_coord, 1.0 ) ) * GetFragLinearDepth( tc2 );
-	return ToneMapping( mix( c, underwater_fog_color, clamp( depth * inv_max_view_distance, 0.0, 1.0 ) )  );
-    //return ToneMapping( mix( c, underwater_fog_color, clamp( GetFragLinearDepth( tc2 ) * inv_max_view_distance, 0.0, 1.0 ) )  );
-
-    //return mix( ToneMapping(c), vec3( 72.0/255.0, 108.0/255.0, 169.0/255.0 ), clamp( -GetFragLinearDepth( tc2 ) * 0.03125, 0.0, 1.0 ) );
+	return ToneMapping( mix( c, underwater_fog_color, min( depth * inv_max_view_distance, 1.0 ) )  );
 }
 
 void main()

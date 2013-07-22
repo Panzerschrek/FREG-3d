@@ -43,7 +43,7 @@ class BlockManager {
 	~BlockManager();
 
 	///Use this to receive a pointer to normal block.
-	Block * NormalBlock(int sub, int dir=UP);
+	Block * NormalBlock(int sub);
 	///Use this to receive a pointer to new not-normal block.
 	Block * NewBlock(int kind, int sub=STONE);
 	///Use this to load block from file.
@@ -52,7 +52,7 @@ class BlockManager {
 	void DeleteBlock(Block * block);
 
 	private:
-	Block * normals[6][AIR+1];
+	Block * normals[AIR+1];
 
 	template <typename Thing>
 	Thing * New(int sub);

@@ -24,29 +24,24 @@
 BlockManager block_manager;
 
 BlockManager::BlockManager() {
-	for (ushort dir=0; dir<=WEST; ++dir) {
-		for (ushort sub=0; sub<=AIR; ++sub) {
-			(normals[dir][sub]=new Block(sub))->SetDir(dir);
-		}
+	for (ushort sub=0; sub<=AIR; ++sub) {
+		normals[sub]=new Block(sub);
 	}
 }
 BlockManager::~BlockManager() {
-	for (ushort dir=0; dir<=WEST; ++dir) {
-		for(ushort sub=0; sub<=AIR; ++sub) {
-			delete normals[dir][sub];
-		}
+	for(ushort sub=0; sub<=AIR; ++sub) {
+		delete normals[sub];
 	}
 }
 
-Block * BlockManager::NormalBlock(const int sub, const int dir) {
-	return normals[dir][sub];
+Block * BlockManager::NormalBlock(const int sub) {
+	return normals[sub];
 }
 
 Block * BlockManager::NewBlock(const int kind, int sub) {
 	if ( sub > AIR ) {
 		fprintf(stderr,
-			"BlockManager::NewBlock: \
-				Don't know such substance: %d.\n",
+			"BlockManager::NewBlock: unknown substance: %d.\n",
 			sub);
 		sub=STONE;
 	}
@@ -66,6 +61,7 @@ Block * BlockManager::NewBlock(const int kind, int sub) {
 		case DOOR:   return New<Door  >(sub);
 		case LIQUID: return New<Liquid>(sub);
 		case CLOCK:  return New<Clock >(sub);
+		case CREATOR: return New<Creator>(sub);
 		case WORKBENCH: return New<Workbench>(sub);
 		default:
 			fprintf(stderr,
@@ -76,13 +72,14 @@ Block * BlockManager::NewBlock(const int kind, int sub) {
 }
 
 Block * BlockManager::BlockFromFile(QDataStream & str) {
-	quint16 kind, sub;
-	bool normal;
-	str >> kind >> sub >> normal;
-	if ( normal ) {
+	quint8 data;
+	str >> data;
+	const quint8 sub=(data & 0x7F);
+	if ( data & 0x80 ) {
 		return NormalBlock(sub);
 	}
-
+	quint8 kind;
+	str >> kind;
 	//if some kind will not be listed here,
 	//blocks of this kind just will not load,
 	//unless kind is inherited from Inventory class or one
@@ -104,18 +101,18 @@ Block * BlockManager::BlockFromFile(QDataStream & str) {
 		case LOCKED_DOOR:
 		case DOOR:   return New<Door  >(str, sub);
 		case CLOCK:  return New<Clock >(str, sub);
+		case CREATOR: return New<Creator>(str, sub);
 		case WORKBENCH: return New<Workbench>(str, sub);
 		default:
 			fprintf(stderr,
-				"BlockManager::BlockFromFile: \
-				unlisted kind: %d.\n",
+				"BlockManager::BlockFromFile: kind (?): %d\n.",
 				kind);
 			return New<Block>(str, sub);
 	}
 }
 
 void BlockManager::DeleteBlock(Block * const block) {
-	if ( block && block!=NormalBlock(block->Sub(), block->GetDir()) ) {
+	if ( block!=NormalBlock(block->Sub()) ) {
 		delete block;
 	}
 }

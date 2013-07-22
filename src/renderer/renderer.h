@@ -51,6 +51,12 @@ class Player;
 #define WORLD_NORMAL_Z      4
 #define WORLD_NORMAL_MIN_Z  5
 
+
+#ifndef FREG_CONSOLE_BUFFER_LEN
+#define FREG_CONSOLE_BUFFER_LEN 256
+#define FREG_CONSOLE_MEMORY_LINES 4
+#endif//aslo defined in screen.h
+
 #define R_MAX_INDECES_PER_SHRED 24576 * 2
 
 const m_Vec3 day_fog( 2.4f, 2.4f, 3.0f );
@@ -128,6 +134,7 @@ public:
     inline void SetCamAngle( m_Vec3 a );
     inline void SetCamPosition( m_Vec3 p );
     inline void SetBuildPosition( m_Vec3 p );
+    inline void SetUsingPosition( m_Vec3 p );
     inline void SetActiveInventorySlot( int n, bool player_inventory );
     inline void RotateCam( m_Vec3& r);
 
@@ -154,6 +161,7 @@ public:
     void UpdateCube( short x0, short y0, short z0, short x1, short y1, short z1 );
 
 public:
+    void SetConsoleComandString( char* str );
     void AddNotifyString( const QString& str );
     void SetUnderwaterMode( bool );
     void Draw();
@@ -180,6 +188,7 @@ private:
     void DrawWorld();
     void DrawSky();
     void DrawHUD();
+    void DrawConsole();
     void DrawMap();
     void DrawSun();
     void DrawWater();
@@ -245,7 +254,7 @@ private:
     int active_inventory_slot, active_inventory;
 
     m_Mat4 view_matrix;
-    m_Vec3 cam_position, build_position, frame_cam_position, cam_angle, frame_cam_angle;
+    m_Vec3 cam_position, build_position, using_position, frame_cam_position, cam_angle, frame_cam_angle;
     float fov, z_near, z_far;
     unsigned short viewport_x, viewport_y;
 
@@ -295,6 +304,7 @@ private:
 
 
     quint16 notify_log[ R_NUMBER_OF_NOTIFY_LINES ][ R_NOTIFY_LINE_LENGTH ];
+    quint16 console_string[ FREG_CONSOLE_BUFFER_LEN + 2 ];
     unsigned int notify_log_last_line;
 
     //shadows section
@@ -428,6 +438,10 @@ inline void r_Renderer::SetBuildPosition( m_Vec3 p )
     build_position= p;
 }
 
+inline void r_Renderer::SetUsingPosition( m_Vec3 p )
+{
+    using_position= p;
+}
 inline void r_Renderer::SetActiveInventorySlot( int n, bool player_inventory )
 {
     active_inventory_slot= n;

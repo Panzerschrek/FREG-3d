@@ -23,10 +23,8 @@
 
 #ifdef Q_OS_WIN32
 	#include <windows.h>
-	inline void usleep(int n ) { Sleep(n/1000); }
+	inline void usleep(int n){ Sleep(n/1000); }
 #endif
-
-const float FREG_VERSION=0.1;
 
 const ushort SHRED_WIDTH=16;
 const ushort HEIGHT=128;
@@ -39,8 +37,6 @@ const ushort END_OF_NOON   =18*SECONDS_IN_HOUR;
 const ushort END_OF_EVENING= 0*SECONDS_IN_HOUR;
 const ushort SECONDS_IN_NIGHT=END_OF_NIGHT;
 const ushort SECONDS_IN_DAYLIGHT=SECONDS_IN_DAY-END_OF_NIGHT;
-
-const uchar MAX_LIGHT_RADIUS=15;
 
 const ushort MAX_DURABILITY=100;
 const ushort MAX_BREATH=60;
@@ -103,7 +99,8 @@ enum kinds {//kind of atom
 	WEAPON, ///<16
 	LADDER, ///<17
 	DOOR, ///< 18
-	LOCKED_DOOR ///< 19
+	LOCKED_DOOR, ///< 19
+	CREATOR      ///< 20
 }; //enum kinds
 enum subs {//substance block is made from
 	//do not change order, or rewrite craft recipes.
@@ -130,7 +127,11 @@ enum subs {//substance block is made from
 	AIR //keep it last in this list
 }; //enum subs
 
-enum usage_types { NO, OPEN, INNER_ACTION };
+enum usage_types {
+	USAGE_TYPE_NO,
+	USAGE_TYPE_OPEN,
+	USAGE_TYPE_READ
+}; //enum usage_types
 
 enum transparency {
 	BLOCK_OPAQUE,
@@ -140,5 +141,15 @@ enum transparency {
 	UNDEF
 }; //enum transparency
 
+typedef struct {
+	int x;
+	int y;
+} xy;
+
+typedef struct {
+	int x;
+	int y;
+	int z;
+} xyz;
 
 #endif
