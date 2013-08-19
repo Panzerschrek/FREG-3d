@@ -18,31 +18,17 @@
 	* along with FREG. If not, see <http://www.gnu.org/licenses/>.
 	*/
 
-#ifndef CRAFTMANAGER_H
-#define CRAFTMANAGER_H
+class QFile;
+class QString;
 
-#include <QList>
+class WorldMap {
+	long mapSize;
+	QFile * map;
 
-typedef struct {
-	ushort num;
-	int kind;
-	int sub;
-} craft_item;
-typedef QList<craft_item *> craft_recipe;
-
-class CraftManager {
 	public:
+	long MapSize() const;
+	char TypeOfShred(long longi, long lati);
 
-	bool MiniCraft(  craft_item   & item,   craft_item & result) const;
-	bool Craft(const craft_recipe & recipe, craft_item & result) const;
-	
-	CraftManager();
-	~CraftManager();
-
-	private:
-	QList<craft_recipe *> recipes;
-}; // class CraftManager
-
-extern CraftManager craft_manager;
-
-#endif
+	WorldMap(const QString *);
+	~WorldMap();
+}; // class Map

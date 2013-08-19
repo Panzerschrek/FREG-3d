@@ -1,18 +1,21 @@
-	/*
-	*This file is part of FREG.
+	/* freg, Free-Roaming Elementary Game with open and interactive world
+	*  Copyright (C) 2012-2013 Alexander 'mmaulwurff' Kromm
+	*  mmaulwurff@gmail.com
 	*
-	*FREG is free software: you can redistribute it and/or modify
-	*it under the terms of the GNU General Public License as published by
-	*the Free Software Foundation, either version 3 of the License, or
-	*(at your option) any later version.
+	* This file is part of FREG.
 	*
-	*FREG is distributed in the hope that it will be useful,
-	*but WITHOUT ANY WARRANTY; without even the implied warranty of
-	*MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	*GNU General Public License for more details.
+	* FREG is free software: you can redistribute it and/or modify
+	* it under the terms of the GNU General Public License as published by
+	* the Free Software Foundation, either version 3 of the License, or
+	* (at your option) any later version.
 	*
-	*You should have received a copy of the GNU General Public License
-	*along with FREG. If not, see <http://www.gnu.org/licenses/>.
+	* FREG is distributed in the hope that it will be useful,
+	* but WITHOUT ANY WARRANTY; without even the implied warranty of
+	* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	* GNU General Public License for more details.
+	*
+	* You should have received a copy of the GNU General Public License
+	* along with FREG. If not, see <http://www.gnu.org/licenses/>.
 	*/
 
 #ifndef BLOCKMANAGER_H
@@ -42,23 +45,34 @@ class BlockManager {
 	BlockManager();
 	~BlockManager();
 
-	///Use this to receive a pointer to normal block.
+	/// Use this to receive a pointer to normal block.
 	Block * NormalBlock(int sub);
-	///Use this to receive a pointer to new not-normal block.
+	/// Use this to receive a pointer to new not-normal block.
 	Block * NewBlock(int kind, int sub=STONE);
-	///Use this to load block from file.
+	/// Use this to load block from file.
+	Block * BlockFromFile(QDataStream &, quint8 kind, quint8 sub);
 	Block * BlockFromFile(QDataStream &);
-	///Use this to safely delete block.
+	/// Returns true if block is normal.
+	bool KindSubFromFile(QDataStream &, quint8 & kind, quint8 & sub);
+	/// Use this to safely delete block.
 	void DeleteBlock(Block * block);
 
+	static QString KindToString(quint8 kind);
+	static QString SubToString(quint8 sub);
+	static quint8 StringToKind(const QString &);
+	static quint8 StringToSub(const QString &);
+	static quint16 MakeId(quint8 kind, quint8 sub);
+
 	private:
-	Block * normals[AIR+1];
+	Block * normals[LAST_SUB];
+	static const QString kinds[LAST_KIND];
+	static const QString subs[LAST_SUB];
 
 	template <typename Thing>
-	Thing * New(int sub);
+	Thing * New(int sub, quint16 id);
 	template <typename Thing>
-	Thing * New(QDataStream & str, int sub);
-}; //class BlockManager
+	Thing * New(QDataStream & str, int sub, quint16 id);
+}; // class BlockManager
 
 extern BlockManager block_manager;
 

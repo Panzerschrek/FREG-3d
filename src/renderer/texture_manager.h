@@ -42,7 +42,7 @@ public:
     void BindMaterialPropertyTexture( unsigned int unit = 0 ) const;
 
 
-    static unsigned char GetBlockTexture( subs sub, kinds kind, unsigned char normal_id, dirs dir );
+    static unsigned char GetBlockTexture( quint16 block_id, unsigned char normal_id, dirs dir );
     static unsigned char GetBlockTextureScale( unsigned char texture_id );
     static void GetBlockTextureBasis( unsigned char normal_id, dirs dir, char* result );
 
@@ -89,12 +89,11 @@ inline void r_TextureManager::SetTexturesSize( unsigned int s )
  	glBindTexture( GL_TEXTURE_1D, material_porperty_texture );
  }
 
-inline unsigned char r_TextureManager::GetBlockTexture( subs sub, kinds kind, unsigned char normal_id, dirs dir )
+inline unsigned char r_TextureManager::GetBlockTexture( quint16 block_id, unsigned char normal_id, dirs dir )
 {
     normal_id= RotateBlockNormal( normal_id, dir );
     return texture_table[ normal_id  |
-                          ( sub << 3 ) |
-                          ( kind << ( R_MAX_SUB_LOG2 + 3 ) )  ];
+                          ( block_id << 3 )  ];
 }
 
 inline unsigned char r_TextureManager::GetBlockTextureScale( unsigned char texture_id )

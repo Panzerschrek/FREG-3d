@@ -19,6 +19,7 @@
 #include "ph.h"
 #include "renderer.h"
 #include "texture_manager.h"
+#include "../BlockManager.h"
 
 void r_ShredInfo::UpdateCube( short x0, short y0, short z0, short x1, short y1, short z1 )
 {
@@ -370,13 +371,13 @@ void r_ShredInfo::GetQuadCount()
 //а так-же для отсутствия дублирования кода. Макрос прибит к методу r_ShredInfo::BuildShred()
 
 #define BUILD_QUAD_X \
-tex_id= r_TextureManager::GetBlockTexture( b->Block::Sub(), b->Kind(), normal_id, b->Block::GetDir() );\
+tex_id= r_TextureManager::GetBlockTexture( b->GetId(), normal_id, b->Block::GetDir() );\
 tex_scale= r_TextureManager::GetBlockTextureScale( tex_id );\
 r_TextureManager::GetBlockTextureBasis( normal_id, b->Block::GetDir(), texture_basis );\
 tc_x= ( ( -y * texture_basis[0] + z * texture_basis[1] ) * tex_scale )&63;\
 tc_y= ( ( z * texture_basis[3]  - y * texture_basis[2] ) * tex_scale )&63;\
 \
-if( b->Kind() == LIQUID )\
+if( b->GetId() == BlockManager::MakeId( LIQUID, WATER ) )\
 {\
 	tmp_vert_p= shred_vertices;\
 	shred_vertices= water_vertices;\
@@ -423,7 +424,7 @@ shred_vertices[3].light[1]=\
         shred_vertices[1].light[1]=\
             shred_vertices[0].light[1]= light >> 4;\
 shred_vertices+= 4;\
-if( b->Kind() == LIQUID )\
+if( b->GetId() == BlockManager::MakeId( LIQUID, WATER ) )\
 {\
 	water_vertices= shred_vertices-8;\
 	shred_vertices= tmp_vert_p;\
@@ -434,13 +435,13 @@ if( b->Kind() == LIQUID )\
 
 #define BUILD_QUAD_Y \
  \
-tex_id= r_TextureManager::GetBlockTexture( b->Block::Sub(), b->Kind(), normal_id, b->Block::GetDir() );\
+tex_id= r_TextureManager::GetBlockTexture( b->GetId(), normal_id, b->Block::GetDir() );\
 tex_scale= r_TextureManager::GetBlockTextureScale( tex_id );\
 r_TextureManager::GetBlockTextureBasis( normal_id, b->Block::GetDir(), texture_basis );\
 tc_x= ( ( x * texture_basis[0] + z * texture_basis[1] ) * tex_scale )&63;\
 tc_y= ( ( z * texture_basis[3] + x * texture_basis[2] ) * tex_scale )&63;\
 \
-if( b->Kind() == LIQUID )\
+if( b->GetId() == BlockManager::MakeId( LIQUID, WATER ) )\
 {\
 	tmp_vert_p= shred_vertices;\
 	shred_vertices= water_vertices;\
@@ -489,7 +490,7 @@ shred_vertices[3].light[1]=\
         shred_vertices[1].light[1]=\
             shred_vertices[0].light[1]= light >> 4;\
 shred_vertices+= 4;\
-if( b->Kind() == LIQUID )\
+if( b->GetId() == BlockManager::MakeId( LIQUID, WATER ) )\
 {\
 	water_vertices= shred_vertices-8;\
 	shred_vertices= tmp_vert_p;\
@@ -498,13 +499,13 @@ if( b->Kind() == LIQUID )\
 
 
 #define BUILD_QUAD_Z \
-tex_id= r_TextureManager::GetBlockTexture( b->Block::Sub(), b->Kind(), normal_id, b->Block::GetDir() );\
+tex_id= r_TextureManager::GetBlockTexture( b->GetId(), normal_id, b->Block::GetDir() );\
 tex_scale= r_TextureManager::GetBlockTextureScale( tex_id );\
 r_TextureManager::GetBlockTextureBasis( normal_id, b->Block::GetDir(), texture_basis );\
 tc_x= ( ( x * texture_basis[0] - y * texture_basis[1] ) * tex_scale )&63;\
 tc_y= ( ( -y * texture_basis[3] + x * texture_basis[2] ) * tex_scale )&63;\
 \
-if( b->Kind() == LIQUID )\
+if( b->GetId() == BlockManager::MakeId( LIQUID, WATER ) )\
 {\
 	tmp_vert_p= shred_vertices;\
 	shred_vertices= water_vertices;\
@@ -553,7 +554,7 @@ shred_vertices[3].light[1]=\
         shred_vertices[1].light[1]=\
             shred_vertices[0].light[1]= light >> 4;\
 shred_vertices+= 4;\
-if( b->Kind() == LIQUID )\
+if( b->GetId() == BlockManager::MakeId( LIQUID, WATER ) )\
 {\
 	water_vertices= shred_vertices-8;\
 	shred_vertices= tmp_vert_p;\
@@ -605,7 +606,7 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
                 {
                     b= shred->GetBlock( x, y, z + 1 );
                     unsigned char s= b->Sub(), k= b->Kind(), d= b->GetDir();
-                    model_list.AddModel( k,d, r_TextureManager::GetBlockTexture( s, k, 0, 0 ), shred->LightMap( x, y, z + 1 ), x + X, y + Y, z );
+                    model_list.AddModel( k,d, r_TextureManager::GetBlockTexture( b->GetId(), 0, 0 ), shred->Lightmap( x, y, z + 1 ), x + X, y + Y, z );
 				}
                 z1&= 3;
 
@@ -618,14 +619,14 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
                         v13[1]= 3;
                         normal_id++;
                         b= shred->GetBlock( x + 1, y, z );
-                        light= shred->LightMap( x , y, z );
+                        light= shred->Lightmap( x , y, z );
                     }
                     else
                     {
                         v13[0]= 3;
                         v13[1]= 1;
                         b= shred->GetBlock( x, y, z );
-                        light= shred->LightMap( x + 1, y, z );
+                        light= shred->Lightmap( x + 1, y, z );
                     }
 
                     BUILD_QUAD_X
@@ -639,14 +640,14 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
                         v13[1]= 3;
                         normal_id++;
                         b= shred->GetBlock( x, y + 1, z );
-                        light= shred->LightMap( x, y, z );
+                        light= shred->Lightmap( x, y, z );
                     }
                     else
                     {
                         v13[0]= 3;
                         v13[1]= 1;
                         b= shred->GetBlock( x, y, z );
-                        light= shred->LightMap( x, y+1, z );
+                        light= shred->Lightmap( x, y+1, z );
                     }
 
                     BUILD_QUAD_Y
@@ -660,14 +661,14 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
                         v13[1]= 3;
                         normal_id++;
                         b= shred->GetBlock( x, y, z + 1 );
-                        light= shred->LightMap( x , y, z );
+                        light= shred->Lightmap( x , y, z );
                     }
                     else
                     {
                         v13[0]= 3;
                         v13[1]= 1;
                         b= shred->GetBlock( x, y, z );
-                        light= shred->LightMap( x, y, z + 1 );
+                        light= shred->Lightmap( x, y, z + 1 );
                     }
 
                     BUILD_QUAD_Z
@@ -696,7 +697,7 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
             {
                 b= shred->GetBlock( x, y, z + 1 );
                 unsigned char s= b->Sub(), k= b->Kind(), d= b->GetDir();
-                model_list.AddModel( k,d, r_TextureManager::GetBlockTexture( s, k, 0, 0 ), shred->LightMap( x, y, z + 1 ), x + X, y + Y, z );
+                model_list.AddModel( k,d, r_TextureManager::GetBlockTexture( b->GetId(), 0, 0 ), shred->Lightmap( x, y, z + 1 ), x + X, y + Y, z );
             }
             z1&= 3;
 
@@ -709,14 +710,14 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
                     v13[1]= 3;
                     normal_id++;
                     b= shred->GetBlock( x + 1, y, z );
-                    light= shred->LightMap( x , y, z );
+                    light= shred->Lightmap( x , y, z );
                 }
                 else
                 {
                     v13[0]= 3;
                     v13[1]= 1;
                     b= shred->GetBlock( x, y, z );
-                    light= shred->LightMap( x + 1, y, z );
+                    light= shred->Lightmap( x + 1, y, z );
                 }
 
                 BUILD_QUAD_X
@@ -730,14 +731,14 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
                     v13[1]= 3;
                     normal_id++;
                     b= south_shred->shred->GetBlock( x, 0, z );
-                    light= shred->LightMap( x, y, z );
+                    light= shred->Lightmap( x, y, z );
                 }
                 else
                 {
                     v13[0]= 3;
                     v13[1]= 1;
                     b= shred->GetBlock( x, y, z );
-                    light= south_shred->shred->LightMap( x, 0, z );
+                    light= south_shred->shred->Lightmap( x, 0, z );
                 }
 
                 BUILD_QUAD_Y
@@ -751,14 +752,14 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
                     v13[1]= 3;
                     normal_id++;
                     b= shred->GetBlock( x, y, z + 1 );
-                    light= shred->LightMap( x, y, z );
+                    light= shred->Lightmap( x, y, z );
                 }
                 else
                 {
                     v13[0]= 3;
                     v13[1]= 1;
                     b= shred->GetBlock( x, y, z );
-                    light= shred->LightMap( x, y, z + 1 );
+                    light= shred->Lightmap( x, y, z + 1 );
                 }
 
                 BUILD_QUAD_Z
@@ -786,7 +787,7 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
             {
                 b= shred->GetBlock( x, y, z + 1 );
                 unsigned char s= b->Sub(), k= b->Kind(), d= b->GetDir();
-                model_list.AddModel( k,d, r_TextureManager::GetBlockTexture( s, k, 0, 0 ), shred->LightMap( x, y, z + 1 ), x + X, y + Y, z );
+                model_list.AddModel( k,d, r_TextureManager::GetBlockTexture( b->GetId(), 0, 0 ), shred->Lightmap( x, y, z + 1 ), x + X, y + Y, z );
             }
             z1&= 3;
 
@@ -799,14 +800,14 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
                     v13[1]= 3;
                     normal_id++;
                     b= east_shred->shred->GetBlock( 0, y, z );
-                    light= shred->LightMap( x, y, z );
+                    light= shred->Lightmap( x, y, z );
                 }
                 else
                 {
                     v13[0]= 3;
                     v13[1]= 1;
                     b= shred->GetBlock( x, y, z );
-                    light= east_shred->shred->LightMap( 0, y, z );
+                    light= east_shred->shred->Lightmap( 0, y, z );
                 }
 
                 BUILD_QUAD_X
@@ -820,14 +821,14 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
                     v13[1]= 3;
                     normal_id++;
                     b= shred->GetBlock( x, y + 1, z );
-                    light= shred->LightMap( x, y, z );
+                    light= shred->Lightmap( x, y, z );
                 }
                 else
                 {
                     v13[0]= 3;
                     v13[1]= 1;
                     b= shred->GetBlock( x, y, z );
-                    light= shred->LightMap( x, y + 1, z );
+                    light= shred->Lightmap( x, y + 1, z );
                 }
 
                 BUILD_QUAD_Y
@@ -841,14 +842,14 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
                     v13[1]= 3;
                     normal_id++;
                     b= shred->GetBlock( x, y, z + 1 );
-                    light= shred->LightMap( x, y, z );
+                    light= shred->Lightmap( x, y, z );
                 }
                 else
                 {
                     v13[0]= 3;
                     v13[1]= 1;
                     b= shred->GetBlock( x, y, z );
-                    light= shred->LightMap( x, y, z + 1 );
+                    light= shred->Lightmap( x, y, z + 1 );
                 }
 
                 BUILD_QUAD_Z
@@ -876,7 +877,7 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
         {
             b= shred->GetBlock( x, y, z + 1 );
             unsigned char s= b->Sub(), k= b->Kind(), d= b->GetDir();
-            model_list.AddModel( k,d, r_TextureManager::GetBlockTexture( s, k, 0, 0 ), shred->LightMap( x, y, z + 1 ), x + X, y + Y, z );
+            model_list.AddModel( k,d, r_TextureManager::GetBlockTexture( b->GetId(), 0, 0 ), shred->Lightmap( x, y, z + 1 ), x + X, y + Y, z );
         }
         z1&= 3;
 
@@ -889,14 +890,14 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
                 v13[1]= 3;
                 normal_id++;
                 b= east_shred->shred->GetBlock( 0, y, z );
-                light= shred->LightMap( x, y, z );
+                light= shred->Lightmap( x, y, z );
             }
             else
             {
                 v13[0]= 3;
                 v13[1]= 1;
                 b= shred->GetBlock( x, y, z );
-                light= east_shred->shred->LightMap( 0, y, z );
+                light= east_shred->shred->Lightmap( 0, y, z );
             }
 
             BUILD_QUAD_X
@@ -910,14 +911,14 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
                 v13[1]= 3;
                 normal_id++;
                 b= south_shred->shred->GetBlock( x, 0, z );
-                light= shred->LightMap( x, y, z );
+                light= shred->Lightmap( x, y, z );
             }
             else
             {
                 v13[0]= 3;
                 v13[1]= 1;
                 b= shred->GetBlock( x, y, z );
-                light= south_shred->shred->LightMap( x, 0, z );
+                light= south_shred->shred->Lightmap( x, 0, z );
             }
 
             BUILD_QUAD_Y
@@ -931,14 +932,14 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
                 v13[1]= 3;
                 normal_id++;
                 b= shred->GetBlock( x, y, z + 1 );
-                light= shred->LightMap( x, y, z );
+                light= shred->Lightmap( x, y, z );
             }
             else
             {
                 v13[0]= 3;
                 v13[1]= 1;
                 b= shred->GetBlock( x, y, z );
-                light= shred->LightMap( x, y,  z + 1 );
+                light= shred->Lightmap( x, y,  z + 1 );
             }
 
             BUILD_QUAD_Z

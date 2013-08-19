@@ -1,24 +1,28 @@
-	/*
-	*This file is part of FREG.
+	/* freg, Free-Roaming Elementary Game with open and interactive world
+	*  Copyright (C) 2012-2013 Alexander 'mmaulwurff' Kromm
+	*  mmaulwurff@gmail.com
 	*
-	*FREG is free software: you can redistribute it and/or modify
-	*it under the terms of the GNU General Public License as published by
-	*the Free Software Foundation, either version 3 of the License, or
-	*(at your option) any later version.
+	* This file is part of FREG.
 	*
-	*FREG is distributed in the hope that it will be useful,
-	*but WITHOUT ANY WARRANTY; without even the implied warranty of
-	*MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	*GNU General Public License for more details.
+	* FREG is free software: you can redistribute it and/or modify
+	* it under the terms of the GNU General Public License as published by
+	* the Free Software Foundation, either version 3 of the License, or
+	* (at your option) any later version.
 	*
-	*You should have received a copy of the GNU General Public License
-	*along with FREG. If not, see <http://www.gnu.org/licenses/>.
+	* FREG is distributed in the hope that it will be useful,
+	* but WITHOUT ANY WARRANTY; without even the implied warranty of
+	* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	* GNU General Public License for more details.
+	*
+	* You should have received a copy of the GNU General Public License
+	* along with FREG. If not, see <http://www.gnu.org/licenses/>.
 	*/
 
 #ifndef PLAYER_H
 #define PLAYER_H
 
 #include <QObject>
+#include "header.h"
 
 class QString;
 class World;
@@ -54,6 +58,7 @@ class Player : public QObject {
 	Active * player;
 	int usingType;
 	int usingSelfType;
+	ushort usingInInventory;
 
 	bool creativeMode;
 
@@ -128,6 +133,7 @@ class Player : public QObject {
 	short HP() const;
 	///This returns player breath reserve.
 	short Breath() const;
+	ushort BreathPercent() const;
 	short Satiation() const;
 	///Can be > 100 if player is gorged. When player is not animal, 50.
 	ushort SatiationPercent() const;
@@ -142,6 +148,8 @@ class Player : public QObject {
 	///This returns how player is using something now.
 	/** See enum usage_types in header.h. */
 	int UsingType() const;
+	ushort GetUsingInInventory() const;
+	void SetUsingTypeNo();
 	///This returns how player is using himself.
 	/** For example, OPEN means he is looking in his backpack.
 	 *  See enum usage_types in header.h. */
@@ -157,7 +165,8 @@ class Player : public QObject {
 	void SetCreativeMode(bool turn);
 
 	void SetDir(int dir);
-	void Move(int dir);
+	/// Moves player to direction. If ==HERE, moves to Player::GetDir().
+	void Move(int direction=HERE);
 	void Jump();
 
 	///Closes backpack, chests, etc.
@@ -189,6 +198,7 @@ class Player : public QObject {
 	void ProcessCommand(QString & command);
 
 	private:
+	void UseNoLock(ushort num);
 	void InnerMove(ushort num_from, ushort num_to, ushort num=1);
 	///Checks player existence, inventory existence, size limits,
 	///block existence.
@@ -199,8 +209,6 @@ class Player : public QObject {
 	Block * Drop(ushort);
 
 	public:
-	void SetNumShreds(ushort num) const;
-
 	///Constructor creates or loads player.
 	/**It reads player_save file if it exists,
 	 * puts player block to the world if there is no player block,

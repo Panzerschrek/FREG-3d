@@ -1,23 +1,27 @@
-	/*
-	*This file is part of FREG.
+	/* freg, Free-Roaming Elementary Game with open and interactive world
+	*  Copyright (C) 2012-2013 Alexander 'mmaulwurff' Kromm
+	*  mmaulwurff@gmail.com
 	*
-	*FREG is free software: you can redistribute it and/or modify
-	*it under the terms of the GNU General Public License as published by
-	*the Free Software Foundation, either version 3 of the License, or
-	*(at your option) any later version.
+	* This file is part of FREG.
 	*
-	*FREG is distributed in the hope that it will be useful,
-	*but WITHOUT ANY WARRANTY; without even the implied warranty of
-	*MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	*GNU General Public License for more details.
+	* FREG is free software: you can redistribute it and/or modify
+	* it under the terms of the GNU General Public License as published by
+	* the Free Software Foundation, either version 3 of the License, or
+	* (at your option) any later version.
 	*
-	*You should have received a copy of the GNU General Public License
-	*along with FREG. If not, see <http://www.gnu.org/licenses/>.
+	* FREG is distributed in the hope that it will be useful,
+	* but WITHOUT ANY WARRANTY; without even the implied warranty of
+	* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	* GNU General Public License for more details.
+	*
+	* You should have received a copy of the GNU General Public License
+	* along with FREG. If not, see <http://www.gnu.org/licenses/>.
 	*/
 
 #include <QDataStream>
 #include <QTextStream>
 #include <QString>
+#include <QFile>
 #include "blocks.h"
 #include "world.h"
 #include "Shred.h"
@@ -116,9 +120,10 @@
 	}
 
 	quint8 Block::Kind() const { return BLOCK; }
+	quint16 Block::GetId() const { return id; }
 	bool Block::Catchable() const { return false; }
 	int  Block::BeforePush(const int, Block * const) { return NO_ACTION; }
-	void Block::Move(const int) {}
+	bool Block::Move(const int) { return false; }
 	usage_types Block::Use(Block *) { return USAGE_TYPE_NO; }
 	int  Block::Wearable() const { return WEARABLE_NOWHERE; }
 	int  Block::DamageKind() const { return CRUSH; }
@@ -126,12 +131,17 @@
 	uchar Block::LightRadius() const { return 0; }
 	void Block::ReceiveSignal(const QString &) {}
 
-	void Block::Inscribe(const QString & str) {
+	bool Block::Inscribe(const QString & str) {
 		if ( note ) {
-			*note=str;
+			*note=str.left(MAX_NOTE_LENGHT);
 		} else {
-			note=new QString(str);
+			note=new QString(str.left(MAX_NOTE_LENGHT));
 		}
+		if ( ""==*note ) {
+			delete note;
+			note=0;
+		}
+		return true;
 	}
 
 	Inventory * Block::HasInventory() { return 0; }
@@ -161,6 +171,7 @@
 			case WOOD:      return WEIGHT_WATER-1;
 			case IRON:      return WEIGHT_IRON;
 			case GREENERY:  return WEIGHT_GREENERY;
+			case PAPER:
 			case ROSE:
 			case HAZELNUT:  return WEIGHT_MINIMAL;
 			case MOSS_STONE:
@@ -206,16 +217,22 @@
 		}
 	}
 
-	Block::Block(const int subst, const quint8 transp) :
+	Block::Block(const int subst, const quint16 i,
+			const quint8 transp)
+		:
 			transparent(Transparency(transp, subst)),
 			sub(subst),
+			id(i),
 			direction(UP),
 			note(0),
 			durability(MAX_DURABILITY)
 	{}
-	Block::Block(QDataStream & str, const int subst, const quint8 transp) :
+	Block::Block(QDataStream & str, const int subst, const quint16 i,
+			const quint8 transp)
+		:
 			transparent(Transparency(transp, subst)),
 			sub(subst),
+			id(i),
 			note(0)
 	{
 		quint16 data;
@@ -245,11 +262,11 @@
 	int Plate::BeforePush(const int, Block * const) { return JUMP; }
 	ushort Plate::Weight() const { return Block::Weight()/4; }
 
-	Plate::Plate(const int sub) :
-			Block(sub, NONSTANDARD)
+	Plate::Plate(const int sub, const quint16 id) :
+			Block(sub, id, NONSTANDARD)
 	{}
-	Plate::Plate(QDataStream & str, const int sub) :
-			Block(str, sub, NONSTANDARD)
+	Plate::Plate(QDataStream & str, const int sub, const quint16 id) :
+			Block(str, sub, id, NONSTANDARD)
 	{}
 //Ladder::
 	QString Ladder::FullName() const {
@@ -275,11 +292,11 @@
 			block_manager.NewBlock(LADDER, Sub());
 	}
 
-	Ladder::Ladder(const int sub) :
-			Block(sub, NONSTANDARD)
+	Ladder::Ladder(const int sub, const quint16 id) :
+			Block(sub, id, NONSTANDARD)
 	{}
-	Ladder::Ladder(QDataStream & str, const int sub) :
-			Block(str, sub, NONSTANDARD)
+	Ladder::Ladder(QDataStream & str, const int sub, const quint16 id) :
+			Block(str, sub, id, NONSTANDARD)
 	{}
 //Weapon::
 	QString Weapon::FullName() const {
@@ -320,11 +337,11 @@
 		return ( IRON==Sub() ) ? DAMAGE : NO_ACTION;
 	}
 
-	Weapon::Weapon(const int sub) :
-			Block(sub, NONSTANDARD)
+	Weapon::Weapon(const int sub, const quint16 id) :
+			Block(sub, id, NONSTANDARD)
 	{}
-	Weapon::Weapon(QDataStream & str, const int sub) :
-			Block(str, sub, NONSTANDARD)
+	Weapon::Weapon(QDataStream & str, const int sub, const quint16 id) :
+			Block(str, sub, id, NONSTANDARD)
 	{}
 //Pick::
 	quint8 Pick::Kind() const { return PICK; }
@@ -352,11 +369,11 @@
 		}
 	}
 
-	Pick::Pick(const int sub) :
-			Weapon(sub)
+	Pick::Pick(const int sub, const quint16 id) :
+			Weapon(sub, id)
 	{}
-	Pick::Pick(QDataStream & str, const int sub) :
-			Weapon(str, sub)
+	Pick::Pick(QDataStream & str, const int sub, const quint16 id) :
+			Weapon(str, sub, id)
 	{}
 //Active::
 	QString Active::FullName() const {
@@ -375,11 +392,16 @@
 	Active * Active::ActiveBlock() { return this; }
 	void Active::ActRare() {}
 	int  Active::ShouldAct() const { return NEVER; }
-	void Active::SetFalling(const bool set) { falling=set; }
 	bool Active::IsFalling() const { return falling; }
 	int  Active::Movable() const { return MOVABLE; }
 	bool Active::ShouldFall() const { return true; }
 	void Active::ActFrequent() {}
+
+	void Active::SetFalling(const bool set) {
+		if ( !(falling=set) ) {
+			fall_height=0;
+		}
+	}
 
 	void Active::SetDeferredAction(DeferredAction * const action) {
 		delete deferredAction;
@@ -404,7 +426,7 @@
 	ushort Active::Y() const { return y_self; }
 	ushort Active::Z() const { return z_self; }
 
-	void Active::Move(const int dir) {
+	bool Active::Move(const int dir) {
 		switch ( dir ) {
 			case NORTH: --y_self; break;
 			case SOUTH: ++y_self; break;
@@ -412,6 +434,7 @@
 			case WEST:  --x_self; break;
 			case UP:    ++z_self; break;
 		}
+		bool overstep=false;
 		if ( DOWN==dir ) {
 			--z_self;
 			++fall_height;
@@ -420,9 +443,11 @@
 				whereShred->RemActive(this);
 				( whereShred=GetWorld()->GetShred(X(), Y()) )->
 					AddActive(this);
+				overstep=true;
 			}
 		}
 		emit Moved(dir);
+		return overstep;
 	}
 
 	void Active::SendSignalAround(const QString & signal) const {
@@ -510,10 +535,13 @@
 		}
 		SetXYZ(x, y, z);
 		(whereShred=sh)->AddActive(this);
-		if ( ENVIRONMENT==sh->Movable(
-				x%SHRED_WIDTH, y%SHRED_WIDTH, z-1) &&
+		if ( ENVIRONMENT==sh->GetBlock(
+					x & SHRED_COORDS_BITS,
+					y & SHRED_COORDS_BITS,
+					z-1)->Movable() &&
 				!(*this==*sh->GetBlock(
-					x%SHRED_WIDTH, y%SHRED_WIDTH, z-1)) )
+					x & SHRED_COORDS_BITS,
+					y & SHRED_COORDS_BITS, z-1)) )
 		{
 			whereShred->AddFalling(this);
 		}
@@ -531,8 +559,8 @@
 	}
 	void Active::SetShredNull() { whereShred=0; }
 
-	Active::Active(const int sub, const quint8 transp) :
-			Block(sub, transp),
+	Active::Active(const int sub, const quint16 id, const quint8 transp) :
+			Block(sub, id, transp),
 			fall_height(0),
 			falling(false),
 			deferredAction(0),
@@ -541,8 +569,10 @@
 			z_self(),
 			whereShred(0)
 	{}
-	Active::Active(QDataStream & str, const int sub, const quint8 transp) :
-			Block(str, sub, transp),
+	Active::Active(QDataStream & str, const int sub, const quint16 id,
+			const quint8 transp)
+		:
+			Block(str, sub, id, transp),
 			falling(false),
 			deferredAction(0),
 			x_self(),
@@ -617,13 +647,13 @@
 		out << breath << satiation;
 	}
 
-	Animal::Animal(const int sub) :
-			Active(sub, NONSTANDARD),
+	Animal::Animal(const int sub, const quint16 id) :
+			Active(sub, id, NONSTANDARD),
 			breath(MAX_BREATH),
 			satiation(SECONDS_IN_DAY)
 	{}
-	Animal::Animal(QDataStream & str, const int sub) :
-			Active(str, sub, NONSTANDARD)
+	Animal::Animal(QDataStream & str, const int sub, const quint16 id) :
+			Active(str, sub, id, NONSTANDARD)
 	{
 		str >> breath >> satiation;
 	}
@@ -721,11 +751,11 @@
 		}
 	}
 
-	void Inventory::InscribeInv(const ushort num, const QString & str) {
+	bool Inventory::InscribeInv(const ushort num, const QString & str) {
 		const int number=Number(num);
 		if ( !number ) {
 			ReceiveSignal(QObject::tr("Nothing here."));
-			return;
+			return false;
 		}
 		const int sub=inventory[num].top()->Sub();
 		if ( inventory[num].top()==block_manager.NormalBlock(sub) ) {
@@ -735,9 +765,14 @@
 			}
 		}
 		for (ushort i=0; i<number; ++i) {
-			inventory[num].at(i)->Inscribe(str);
+			if ( !inventory[num].at(i)->Inscribe(str) ) {
+				ReceiveSignal(QObject::tr(
+					"Cannot inscribe this."));
+				return false;
+			}
 		}
 		ReceiveSignal(QObject::tr("Inscribed."));
+		return true;
 	}
 
 	QString Inventory::InvFullName(const ushort num) const {
@@ -875,7 +910,7 @@
 
 	ushort Dwarf::Weight() const {
 		World * const world=GetWorld();
-		return (
+		return ( world && (
 				(world->InBounds(X()+1, Y()) &&
 					world->GetBlock(X()+1, Y(), Z())->
 						Catchable()) ||
@@ -887,7 +922,7 @@
 						Catchable()) ||
 				(world->InBounds(X(), Y()-1) &&
 					world->GetBlock(X(), Y()-1, Z())->
-						Catchable()) ) ?
+						Catchable()) ) ) ?
 			0 : Inventory::Weight()+Block::Weight();
 	}
 
@@ -909,7 +944,8 @@
 		Block * const in_right=ShowBlock(IN_RIGHT);
 		const uchar  left_rad=in_left  ? in_left ->LightRadius() : 0;
 		const uchar right_rad=in_right ? in_right->LightRadius() : 0;
-		lightRadius=qMax(uchar(2), qMax(left_rad, right_rad));
+		lightRadius=qMax(uchar(MIN_DWARF_LIGHT_RADIUS),
+			qMax(left_rad, right_rad));
 	}
 
 	void Dwarf::ReceiveSignal(const QString & str) {
@@ -931,6 +967,19 @@
 			level+=ShowBlock(IN_LEFT)->DamageLevel();
 		}
 		return level;
+	}
+
+	bool Dwarf::Move(const int dir) {
+		const bool overstepped=Active::Move(dir);
+		if ( overstepped ) {
+			for (ushort i=0; i<ON_LEGS; ++i) {
+				Block * const block=ShowBlock(i);
+				if ( block && block->Kind()==MAP ) {
+					block->Use(this);
+				}
+			}
+		}
+		return overstepped;
 	}
 
 	quint16 Dwarf::NutritionalValue(const int sub) const {
@@ -955,10 +1004,7 @@
 				( ON_LEGS==num_to &&
 					WEARABLE_LEGS==block->Wearable() )) )
 		{
-			for (ushort i=0; i<num; ++i) {
-				Inventory::MoveInside(num_from, num_to,
-					Number(num_from));
-			}
+			Inventory::MoveInside(num_from, num_to, num);
 		}
 		UpdateLightRadius();
 		GetWorld()->Shine(X(), Y(), Z(), lightRadius, true);
@@ -970,20 +1016,21 @@
 		out << activeHand;
 	}
 
-	void Dwarf::Inscribe(const QString &) {
+	bool Dwarf::Inscribe(const QString &) {
 		SendSignalAround(tr("Don't touch me!"));
+		return false;
 	}
 
-	Dwarf::Dwarf(const int sub) :
-			Animal(sub),
+	Dwarf::Dwarf(const int sub, const quint16 id) :
+			Animal(sub, id),
 			Inventory(),
 			activeHand(IN_RIGHT),
-			lightRadius(2)
+			lightRadius(MIN_DWARF_LIGHT_RADIUS)
 	{
 		note=new QString("Urist");
 	}
-	Dwarf::Dwarf(QDataStream & str, const int sub) :
-			Animal(str, sub),
+	Dwarf::Dwarf(QDataStream & str, const int sub, const quint16 id) :
+			Animal(str, sub, id),
 			Inventory(str)
 	{
 		str >> activeHand;
@@ -1024,12 +1071,14 @@
 		Inventory::SaveAttributes(out);
 	}
 
-	Chest::Chest(const int s, const ushort size) :
-			Block(s),
+	Chest::Chest(const int sub, const quint16 id, const ushort size) :
+			Block(sub, id),
 			Inventory(size)
 	{}
-	Chest::Chest(QDataStream & str, const int sub, const ushort size) :
-			Block(str, sub),
+	Chest::Chest(QDataStream & str, const int sub, const quint16 id,
+			const ushort size)
+		:
+			Block(str, sub, id),
 			Inventory(str, size)
 	{}
 //Pile::
@@ -1072,12 +1121,12 @@
 		Inventory::SaveAttributes(out);
 	}
 
-	Pile::Pile(const int sub) :
-			Active(sub, NONSTANDARD),
+	Pile::Pile(const int sub, const quint16 id) :
+			Active(sub, id, NONSTANDARD),
 			Inventory(INV_SIZE)
 	{}
-	Pile::Pile(QDataStream & str, const int sub) :
-			Active(str, sub, NONSTANDARD),
+	Pile::Pile(QDataStream & str, const int sub, const quint16 id) :
+			Active(str, sub, id, NONSTANDARD),
 			Inventory(str, INV_SIZE)
 	{}
 //Liquid::
@@ -1114,7 +1163,7 @@
 	int Liquid::Movable() const { return ENVIRONMENT; }
 	quint8 Liquid::Kind() const { return LIQUID; }
 	int Liquid::Temperature() const { return ( WATER==Sub() ) ? 0 : 1000; }
-	uchar Liquid::LightRadius() const { return ( WATER==Sub() ) ? 0 : 3; }
+	uchar Liquid::LightRadius() const { return ( WATER==Sub() ) ? 0 : 7; }
 	Block * Liquid::DropAfterDamage() const { return 0; }
 
 	QString Liquid::FullName() const {
@@ -1129,18 +1178,18 @@
 		}
 	}
 
-	Liquid::Liquid(const int sub) :
-			Active(sub)
+	Liquid::Liquid(const int sub, const quint16 id) :
+			Active(sub, id)
 	{}
-	Liquid::Liquid(QDataStream & str, const int sub) :
-			Active(str, sub)
+	Liquid::Liquid(QDataStream & str, const int sub, const quint16 id) :
+			Active(str, sub, id)
 	{}
 //Grass::
 	void Grass::ActRare() {
 		World * const world=GetWorld();
 		if ( SOIL!=GetShred()->Sub(
-				X()%SHRED_WIDTH,
-				Y()%SHRED_WIDTH, Z()-1) )
+				X() & SHRED_COORDS_BITS,
+				Y() & SHRED_COORDS_BITS, Z()-1) )
 		{
 			world->Damage(X(), Y(), Z(), durability, TIME);
 		}
@@ -1186,11 +1235,11 @@
 
 	Block * Grass::DropAfterDamage() const { return 0; }
 
-	Grass::Grass(const int sub) :
-			Active(sub)
+	Grass::Grass(const int sub, const quint16 id) :
+			Active(sub, id)
 	{}
-	Grass::Grass(QDataStream & str, const int sub) :
-			Active(str, sub)
+	Grass::Grass(QDataStream & str, const int sub, const quint16 id) :
+			Active(str, sub, id)
 	{}
 //Bush::
 	QString Bush::FullName() const { return tr("Bush"); }
@@ -1233,12 +1282,12 @@
 		Inventory::SaveAttributes(out);
 	}
 
-	Bush::Bush(const int sub) :
-			Active(sub),
+	Bush::Bush(const int sub, const quint16 id) :
+			Active(sub, id),
 			Inventory(BUSH_SIZE)
 	{}
-	Bush::Bush(QDataStream & str, const int sub) :
-			Active(str, sub),
+	Bush::Bush(QDataStream & str, const int sub, const quint16 id) :
+			Active(str, sub, id),
 			Inventory(str, BUSH_SIZE)
 	{}
 //Rabbit::
@@ -1323,11 +1372,11 @@
 		return ( GREENERY==sub ) ? SECONDS_IN_HOUR*4 : 0;
 	}
 
-	Rabbit::Rabbit(const int sub) :
-			Animal(sub)
+	Rabbit::Rabbit(const int sub, const quint16 id) :
+			Animal(sub, id)
 	{}
-	Rabbit::Rabbit(QDataStream & str, const int sub) :
-			Animal(str, sub)
+	Rabbit::Rabbit(QDataStream & str, const int sub, const quint16 id) :
+			Animal(str, sub, id)
 	{}
 //Workbench::
 	void Workbench::Craft() {
@@ -1432,11 +1481,13 @@
 		}
 	}
 
-	Workbench::Workbench(const int sub) :
-			Chest(sub, WORKBENCH_SIZE)
+	Workbench::Workbench(const int sub, const quint16 id) :
+			Chest(sub, id, WORKBENCH_SIZE)
 	{}
-	Workbench::Workbench(QDataStream & str, const int sub) :
-			Chest(str, sub, WORKBENCH_SIZE)
+	Workbench::Workbench(QDataStream & str, const int sub,
+			const quint16 id)
+		:
+			Chest(str, sub, id, WORKBENCH_SIZE)
 	{}
 //Door::
 	int Door::BeforePush(const int dir, Block * const) {
@@ -1498,16 +1549,16 @@
 		out << shifted << locked;
 	}
 
-	Door::Door(const int sub) :
-			Active(sub, ( STONE==sub ) ?
-				BLOCK_OPAQUE :
-				NONSTANDARD),
+	Door::Door(const int sub, const quint16 id) :
+			Active(sub, id,
+				( STONE==sub ) ?
+					BLOCK_OPAQUE : NONSTANDARD),
 			shifted(false),
 			locked(false),
 			movable(NOT_MOVABLE)
 	{}
-	Door::Door(QDataStream & str, const int sub) :
-			Active(str, sub, NONSTANDARD),
+	Door::Door(QDataStream & str, const int sub, const quint16 id) :
+			Active(str, sub, id, NONSTANDARD),
 			movable(NOT_MOVABLE)
 	{
 		str >> shifted >> locked;
@@ -1561,7 +1612,7 @@
 		}
 	}
 
-	void Clock::Inscribe(const QString & str) {
+	bool Clock::Inscribe(const QString & str) {
 		Block::Inscribe(str);
 		char c;
 		QTextStream txt_stream(note);
@@ -1578,15 +1629,16 @@
 		} else {
 			alarmTime=timerTime=-1;
 		}
+		return true;
 	}
 
-	Clock::Clock(const int sub) :
-			Active(sub, NONSTANDARD),
+	Clock::Clock(const int sub, const quint16 id) :
+			Active(sub, id, NONSTANDARD),
 			alarmTime(-1),
 			timerTime(-1)
 	{}
-	Clock::Clock (QDataStream & str, const int sub) :
-			Active(str, sub, NONSTANDARD),
+	Clock::Clock (QDataStream & str, const int sub, const quint16 id) :
+			Active(str, sub, id, NONSTANDARD),
 			alarmTime(-1),
 			timerTime(-1)
 	{
@@ -1594,7 +1646,6 @@
 			Inscribe(*note);
 		}
 	}
-	Clock::~Clock() {}
 //Creator::
 	quint8 Creator::Kind() const { return CREATOR; }
 	int Creator::Sub() const { return Block::Sub(); }
@@ -1614,11 +1665,174 @@
 		Inventory::SaveAttributes(out);
 	}
 
-	Creator::Creator(const int sub) :
-			Active(sub, NONSTANDARD),
+	Creator::Creator(const int sub, const quint16 id) :
+			Active(sub, id, NONSTANDARD),
 			Inventory(INV_SIZE)
 	{}
-	Creator::Creator(QDataStream & str, const int sub) :
-			Active(str, sub, NONSTANDARD),
+	Creator::Creator(QDataStream & str, const int sub, const quint16 id) :
+			Active(str, sub, id, NONSTANDARD),
 			Inventory(str, INV_SIZE)
+	{}
+//Text::
+	quint8 Text::Kind() const { return TEXT; }
+	QString Text::FullName() const { return QObject::tr("Paper page"); }
+
+	usage_types Text::Use(Block * const who) {
+		if ( note ) {
+			return USAGE_TYPE_READ;
+		} else {
+			who->ReceiveSignal(QObject::tr(
+				"Nothing is written on this page"));
+			return USAGE_TYPE_NO;
+		}
+	}
+
+	bool Text::Inscribe(const QString & str) {
+		if ( '.'!=str.at(0) && !note ) {
+			Block::Inscribe(str);
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	void Text::SetTitle(const QString & str) {
+		if ( note ) {
+			delete note;
+			note=0;
+		}
+		Block::Inscribe(str);
+	}
+
+	Text::Text(const int sub, const quint16 id) :
+			Block(sub, id, NONSTANDARD)
+	{}
+	Text::Text(QDataStream & str, const int sub, const quint16 id) :
+			Block(str, sub, id, NONSTANDARD)
+	{}
+//Map::
+	quint8 Map::Kind() const { return MAP; }
+	QString Map::FullName() const { return QObject::tr("Map"); }
+
+	usage_types Map::Use(Block * const who) {
+		if ( !note ) {
+			if ( who ) {
+				who->ReceiveSignal(QObject::tr(
+					"Set title to this map first."));
+			}
+			return USAGE_TYPE_NO;
+		} else if ( who && who->ActiveBlock() ) {
+			const Active * const active=who->ActiveBlock();
+			QFile map_file(active->GetWorld()->
+				WorldName() + "/texts/" + *note);
+			const long  lati=active->GetShred()->Latitude();
+			const long longi=active->GetShred()->Longitude();
+			if ( !map_file.open(QIODevice::ReadWrite |
+					QIODevice::Text) )
+			{
+				return USAGE_TYPE_READ;
+			}
+			World * const world=active->GetWorld();
+			static const ushort FILE_SIZE_CHARS=31;
+			if ( 0==map_file.size() ) {
+				map_file.putChar('+');
+				for (ushort i=0; i<FILE_SIZE_CHARS-2; ++i) {
+					map_file.putChar('-');
+				}
+				map_file.putChar('+');
+				map_file.putChar('\n');
+				for (ushort i=0; i<FILE_SIZE_CHARS-2; ++i) {
+					map_file.putChar('|');
+					for (ushort j=0; j<FILE_SIZE_CHARS-2;
+							++j)
+					{
+						map_file.putChar(' ');
+					}
+					map_file.putChar('|');
+					map_file.putChar('\n');
+				}
+				map_file.putChar('+');
+				for (ushort i=0; i<FILE_SIZE_CHARS-2; ++i) {
+					map_file.putChar('-');
+				}
+				map_file.putChar('+');
+
+				map_file.seek(FILE_SIZE_CHARS/2);
+				map_file.putChar('+');
+				map_file.seek(FILE_SIZE_CHARS/2*
+					(FILE_SIZE_CHARS+1));
+				map_file.putChar('+');
+				map_file.seek(FILE_SIZE_CHARS/2*
+					(FILE_SIZE_CHARS+1)+FILE_SIZE_CHARS-1);
+				map_file.putChar('+');
+				map_file.seek((FILE_SIZE_CHARS-1)*
+					(FILE_SIZE_CHARS+1)+FILE_SIZE_CHARS/2);
+				map_file.putChar('+');
+
+				longiStart=longi;
+				latiStart=lati;
+			}
+			if (
+					abs( lati-latiStart )>
+						FILE_SIZE_CHARS/2 ||
+					abs(longi-longiStart)>
+						FILE_SIZE_CHARS/2 )
+			{
+				return USAGE_TYPE_READ;
+			}
+			if ( savedChar ) {
+				map_file.seek(savedShift);
+				map_file.putChar(savedChar);
+			}
+			map_file.seek(savedShift=(FILE_SIZE_CHARS+1)*
+				(longi-longiStart+FILE_SIZE_CHARS/2)+
+				 lati-latiStart+FILE_SIZE_CHARS/2);
+			map_file.putChar('@');
+			savedChar=world->TypeOfShred(longi, lati);
+			map_file.seek((FILE_SIZE_CHARS+1)*FILE_SIZE_CHARS-1);
+			map_file.putChar('\n');
+			map_file.putChar('@');
+			map_file.putChar('=');
+			map_file.putChar(savedChar);
+			map_file.putChar('\n');
+		}
+		return USAGE_TYPE_READ;
+	} // Map::Use
+
+	void Map::SaveAttributes(QDataStream & out) const {
+		out << longiStart << latiStart << savedShift << savedChar;
+	}
+
+	Map::Map(const int sub, const quint16 id) :
+			Text(sub, id),
+			longiStart(),
+			latiStart(),
+			savedShift(),
+			savedChar(0)
+	{}
+	Map::Map(QDataStream & str, const int sub, const quint16 id) :
+			Text(str, sub, id)
+	{
+		str >> longiStart >> latiStart >> savedShift >> savedChar;
+	}
+// Bell:
+	quint8 Bell::Kind() const { return BELL; }
+	QString Bell::FullName() const { return tr("Bell."); }
+
+	usage_types Bell::Use(Block  * const) {
+		SendSignalAround(SOUND_STRINGS[0]); // "Ding!"
+		return USAGE_TYPE_NO;
+	}
+
+	void Bell::ReceiveSignal(const QString & str) {
+		if ( SOUND_STRINGS[0]!=str ) {
+			SendSignalAround(SOUND_STRINGS[0]);
+		}
+	}
+
+	Bell::Bell(const int sub, const quint16 id) :
+			Active(sub, id)
+	{}
+	Bell::Bell(QDataStream & str, const int sub, const quint16 id) :
+			Active(str, sub, id)
 	{}

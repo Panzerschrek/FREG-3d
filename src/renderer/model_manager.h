@@ -57,7 +57,7 @@ enum:
     void AddModels( r_LocalModelList* model_list );
     void GenerateInstanceDataBuffer();
     void LoadModels();
-    void LoadModels2();
+    void LoadModelsFiles();
     void DrawModels( const r_GLSLProgram* shader );
     void InitVertexBuffer();
 

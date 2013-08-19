@@ -162,8 +162,10 @@ private:
     r_Renderer* renderer;
 
 
+    void InventoryFunc(QMouseEvent * e);
+    void BlockMenuFunc(QMouseEvent * e);
 
-private://Panzerschrek
+private:
     QTime startup_time;
     int screen_width, screen_height;
     QVBoxLayout *layout;
@@ -208,6 +210,15 @@ public:
     bool inventory_drag;
     bool movable_in_player_inventory;
     int active_hand;
+
+
+    void LoadBlockList();
+    unsigned short block_list[64][2];
+    bool block_list_opened;
+
+    public:
+     static char block_names[64][32];
+     static unsigned int block_list_size;
 
 };
 

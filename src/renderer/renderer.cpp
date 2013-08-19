@@ -433,6 +433,7 @@ void r_Renderer::DrawHUD()
     p= AddText( p.x, p.y, &text_color, 1.0, "shreds updated: %d\n", shreds_update_per_second_to_draw );
     p= AddText( p.x, p.y, &text_color, 1.0, deferred_shading ? "deferred shading\n" : "forward rendering\n");
 
+    quint16 scale_signs[]= { ' ', 0, '#', 0 };
     //hp string
     text_color.x= text_color.y= text_color.z= 0.8;
     char hp_string[32];
@@ -441,33 +442,59 @@ void r_Renderer::DrawHUD()
     p.y=  float( 6 * DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y ) - 1.0f;
     p= AddText( p.x, p.y, &text_color, 1.0, hp_string );
     text_color.x= 0.8, text_color.y= 0.1, text_color.z= 0.1;
+    unsigned int hp= player->HP()/10;
     for( int i=0; i< 10; i++ )
-        p= AddText( p.x, p.y, &text_color, 1.0, ( player->HP()/10 <= i ) ? " " : "#"  );
+        p= AddTextUnicode( p.x, p.y, &text_color, 1.0, ( hp <= i ) ? scale_signs : scale_signs + 2  );
 
     text_color.x= text_color.y= text_color.z= 0.8;
     p= AddText( p.x, p.y, &text_color, 1, "]\n" );
 
     //br string
-    sprintf( hp_string, "BR: %3d\%[", player->Breath() );
+    sprintf( hp_string, "BR: %3d\%[", player->BreathPercent() );
     p.x= 1.0f - float( 22 * DEFAULT_FONT_WIDTH ) * 2.0f / float( viewport_x );
     p= AddText( p.x, p.y, &text_color, 1.0, hp_string );
     text_color.x= 0.1, text_color.y= 0.1, text_color.z= 0.8;
+    unsigned int br= player->BreathPercent()/10;
     for( int i=0; i< 10; i++ )
-        p= AddText( p.x, p.y, &text_color, 1, ( player->Breath()/10 <= i ) ? " " : "#"  );
+        p= AddTextUnicode( p.x, p.y, &text_color, 1, ( br <= i ) ? scale_signs : scale_signs + 2   );
 
     text_color.x= text_color.y= text_color.z= 0.8;
     p= AddText( p.x, p.y, &text_color, 1.0, "]\n" );
 
-
-    //satiation
-    text_color.x= 0.1, text_color.y= 0.8, text_color.z= 0.1;
+    //satiation string
     p.x= 1.0f - float( 22 * DEFAULT_FONT_WIDTH ) * 2.0f / float( viewport_x );
-    AddText( p.x, p.y, &text_color, 1, "satiation: %d\n", player->Satiation()  );
-
-    //notify log
+    unsigned int sat= player->SatiationPercent();
+    sprintf(  hp_string, "SA: %3d%[", sat );
+    sat/=10;
+    p= AddText( p.x, p.y, &text_color, 1.0, hp_string );
+    text_color.x= 0.1, text_color.y= 0.8, text_color.z= 0.1;
+     for( int i=0; i< 10; i++ )
+        p= AddTextUnicode( p.x, p.y, &text_color, 1, ( sat <= i ) ? scale_signs : scale_signs + 2   );
     text_color.x= text_color.y= text_color.z= 0.8;
+     p= AddText( p.x, p.y, &text_color, 1.0, "]\n" );
+
+
+
+    //notify log and inventory
     p.x= float( DEFAULT_FONT_WIDTH ) * 2.0f / float( viewport_x ) - 1.0f;
-    p.y= float( R_NUMBER_OF_NOTIFY_LINES * DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y ) - 1.0f;
+    p.y= float( ( 2 + R_NUMBER_OF_NOTIFY_LINES ) * DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y ) - 1.0f;
+
+    Inventory* inv= player->GetP()->HasInventory();
+    char* inv_hand="";
+    int inv_count= 0;
+    int slot;
+    if( inv != 0 )
+    {
+        slot= 1 + int(!player->IsRightActiveHand());
+        inv_hand= inv->InvFullName( slot ).toLocal8Bit().constData();
+        inv_count= inv->Number( slot );
+    }
+    text_color.x= text_color.x= 0.8f;
+    text_color.z= 0.1f;
+    p.y= AddText( p.x, p.y, &text_color, 1.0f, "%s hand: %s %d\n\n", player->IsRightActiveHand() ? "right" : "left",
+                 inv_hand, inv_count ).y;
+     //notify log
+    text_color.x= text_color.y= text_color.z= 0.8f;
     for( int i= R_NUMBER_OF_NOTIFY_LINES - 1, n; i>= 0; i-- )
     {
         n= ( notify_log_last_line - 1 - i ) % R_NUMBER_OF_NOTIFY_LINES;
@@ -477,6 +504,23 @@ void r_Renderer::DrawHUD()
 
 }
 
+void r_Renderer::DrawBlockMenu()
+{
+    if( !show_block_list )
+        return;
+    m_Vec3 c( 1.0, 1.0, 1.0 );
+
+    m_Vec3 p( 1.0f - 2.0f * float( DEFAULT_FONT_WIDTH * 42 ) / viewport_x,
+              1.0f - 2.0f * float( DEFAULT_FONT_HEIGHT * 2 ) / viewport_y, 0.0 );
+    int i;
+    for( i= 0; i< Screen::block_list_size/2; i++ )
+        p.y= AddText( p.x, p.y, &c, 1.0f, "%s\n",Screen::block_names[i] ).y;
+
+    p.y= 1.0f - 2.0f * float( DEFAULT_FONT_HEIGHT * 2 ) / viewport_y;
+    p.x= 1.0f - 2.0f * float( DEFAULT_FONT_WIDTH * 21 ) / viewport_x;
+         for( ; i< Screen::block_list_size; i++ )
+    p.y= AddText( p.x, p.y, &c, 1.0f, "%s\n",Screen::block_names[i] ).y;
+}
 
 void r_Renderer::DrawConsole()
 {
@@ -496,6 +540,8 @@ void r_Renderer::DrawConsole()
 }
 void r_Renderer::DrawMap()
 {
+    if( ! show_map )
+        return;
     m_Vec3 p( 0.0f, 0.0f, 0.0f );
     m_Vec3 color;
     float symbol_y;
@@ -530,7 +576,7 @@ void r_Renderer::DrawMap()
         player_arrow= '^';
 
 
-    p.y= float( ( 1 + visibly_world_size[1] ) * DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y ) - 1.0f;
+    p.y= float( ( 0 + visibly_world_size[1] ) * DEFAULT_FONT_WIDTH*2 ) * 2.0f / float( viewport_y ) - 1.0f;
     for( y=0; y< visibly_world_size[1]; y++ )
     {
         p.x= - float( visibly_world_size[0] * DEFAULT_FONT_WIDTH ) * 2.0f / float( viewport_x );
@@ -544,9 +590,8 @@ void r_Renderer::DrawMap()
             else
                 str[1]= ' ';
             p= AddTextUnicode( p.x, p.y, &map_colors[ color_id ], 1.0f, str );
-            //p= AddText( p.x, p.y, &map_colors[ color_id ], 1.0f, "%c%c", c, ' ' );
         }
-        p.y-= float( DEFAULT_FONT_HEIGHT ) * 2.0f / float( viewport_y );
+        p.y-= float( DEFAULT_FONT_WIDTH*2 ) * 2.0f / float( viewport_y );
     }
 }
 void r_Renderer::DrawCursor()
@@ -949,6 +994,7 @@ void r_Renderer::Draw()
 #endif
     DrawHUD();
     DrawInventory();
+    DrawBlockMenu();
     DrawMap();
     DrawCursor();
     DrawConsole();
@@ -2500,7 +2546,9 @@ r_Renderer::r_Renderer( World* w,Player* p, int width, int height ):
     front_shadowmap(0), back_shadowmap(1),
     scene_brightness(0.0f),
     config( QDir::currentPath()+"/freg.ini", QSettings::IniFormat ),
-    rain( 16384 )
+    rain( 16384 ),
+    show_map(false),
+    show_block_list(false )
 {
     world->WriteLock();
     r_Config.double_update_interval_radius= 2;

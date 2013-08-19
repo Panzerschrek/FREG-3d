@@ -99,7 +99,7 @@ void r_WeatherEffectsParticleManager::Initialize()
         rain_shader.FindUniform( "shadow_mat" );
     }
     rain_texture.Load( "textures/rain.tga" );
-    snow_texture.Load( "textures/snow.tga" );
+    snow_texture.Load( "textures/snowflake.tga" );
 }
 
 

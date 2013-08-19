@@ -1,18 +1,21 @@
-	/*
-	*This file is part of FREG.
+	/* freg, Free-Roaming Elementary Game with open and interactive world
+	*  Copyright (C) 2012-2013 Alexander 'mmaulwurff' Kromm
+	*  mmaulwurff@gmail.com
 	*
-	*FREG is free software: you can redistribute it and/or modify
-	*it under the terms of the GNU General Public License as published by
-	*the Free Software Foundation, either version 3 of the License, or
-	*(at your option) any later version.
+	* This file is part of FREG.
 	*
-	*FREG is distributed in the hope that it will be useful,
-	*but WITHOUT ANY WARRANTY; without even the implied warranty of
-	*MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	*GNU General Public License for more details.
+	* FREG is free software: you can redistribute it and/or modify
+	* it under the terms of the GNU General Public License as published by
+	* the Free Software Foundation, either version 3 of the License, or
+	* (at your option) any later version.
 	*
-	*You should have received a copy of the GNU General Public License
-	*along with FREG. If not, see <http://www.gnu.org/licenses/>.
+	* FREG is distributed in the hope that it will be useful,
+	* but WITHOUT ANY WARRANTY; without even the implied warranty of
+	* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	* GNU General Public License for more details.
+	*
+	* You should have received a copy of the GNU General Public License
+	* along with FREG. If not, see <http://www.gnu.org/licenses/>.
 	*/
 
 #include <QFile>
@@ -72,6 +75,7 @@ void Player::SetCreativeMode(const bool turn) {
 
 int Player::UsingSelfType() const { return usingSelfType; }
 int Player::UsingType() const { return usingType; }
+void Player::SetUsingTypeNo() { usingType=USAGE_TYPE_NO; }
 
 Active * Player::GetP() const { return player; }
 
@@ -88,6 +92,11 @@ short Player::Breath() const {
 	Animal const * const animal=player->IsAnimal();
 	return ( animal ? animal->Breath() : -1 );
 }
+ushort Player::BreathPercent() const {
+	const short breath=Breath();
+	return ( -1==breath ) ?
+		100 : breath*100/MAX_BREATH;
+}
 
 short Player::Satiation() const {
 	if ( !player || creativeMode ) {
@@ -99,8 +108,7 @@ short Player::Satiation() const {
 ushort Player::SatiationPercent() const {
 	const short satiation=Satiation();
 	return ( -1==satiation ) ?
-		50 :
-		satiation*100/SECONDS_IN_DAY;
+		50 : satiation*100/SECONDS_IN_DAY;
 }
 
 Inventory * Player::PlayerInventory() {
@@ -142,15 +150,17 @@ void Player::Examine(const short i, const short j, const short k) const {
 	}
 	if ( AIR==sub || SKY==sub || SUN_MOON==sub ) {
 		world->Unlock();
-		return;	
+		return;
 	}
 	QString str;
 	if ( ""!=(str=block->GetNote()) ) {
 		emit Notify(tr("Inscription: ")+str);
 	}
-	emit Notify(tr("Temperature: %1.").arg(world->Temperature(i, j, k)));
-	emit Notify(tr("Durability: %1.").arg(block->Durability()));
-	emit Notify(tr("Weight: %1.").arg(block->Weight()));
+	emit Notify(tr("Temperature: %1. Durability: %2. Weight: %3. Id: %4.").
+		arg(world->Temperature(i, j, k)).
+		arg(block->Durability()).
+		arg(block->Weight()).
+		arg(block->GetId()));
 	world->Unlock();
 }
 
@@ -170,11 +180,10 @@ void Player::Jump() {
 
 void Player::Move(const int dir) {
 	if ( player ) {
-		SetDir(dir);
 		if ( GetCreativeMode() ) {
-			player->GetDeferredAction()->SetGhostMove();
+			player->GetDeferredAction()->SetGhostMove(dir);
 		} else {
-			player->GetDeferredAction()->SetMove();
+			player->GetDeferredAction()->SetMove(dir);
 		}
 	}
 }
@@ -191,7 +200,7 @@ void Player::Backpack() {
 
 void Player::Use(const short x, const short y, const short z) {
 	world->WriteLock();
-	const int us_type=world->GetBlock(x, y, z)->Use();
+	const int us_type=world->GetBlock(x, y, z)->Use(player);
 	usingType=( us_type==usingType ) ? USAGE_TYPE_NO : us_type;
 	world->Unlock();
 }
@@ -199,7 +208,11 @@ void Player::Use(const short x, const short y, const short z) {
 void Player::Inscribe(const short x, const short y, const short z) const {
 	world->WriteLock();
 	if ( player ) {
-		world->Inscribe(x, y, z);
+		if ( world->Inscribe(x, y, z) ) {
+			emit Notify(tr("Inscribed."));
+		} else {
+			emit Notify(tr("Cannot inscribe this."));
+		}
 	} else {
 		emit Notify(tr("No player."));
 	}
@@ -230,12 +243,22 @@ Block * Player::ValidBlock(const ushort num) const {
 
 void Player::Use(const ushort num) {
 	world->WriteLock();
-	Block * const block=ValidBlock(num);
-	if ( block ) {
-		block->Use(player);
-	}
+	UseNoLock(num);
 	world->Unlock();
 }
+
+void Player::UseNoLock(const ushort num) {
+	Block * const block=ValidBlock(num);
+	if ( block ) {
+		if ( block->Use(player)==USAGE_TYPE_READ ) {
+			usingInInventory=num;
+			usingType=USAGE_TYPE_READ_IN_INVENTORY;
+			emit Updated();
+		}
+	}
+}
+
+ushort Player::GetUsingInInventory() const { return usingInInventory; }
 
 void Player::Throw(const short x, const short y, const short z,
 		const ushort src, const ushort dest, const ushort num)
@@ -248,12 +271,6 @@ void Player::Obtain(const short x, const short y, const short z,
 {
 	world->WriteLock();
 	world->Get(player, x, y, z, src, dest, num);
-	Block * const using_block=world->GetBlock(x, y, z);
-	if ( using_block->HasInventory()->IsEmpty() &&
-			PILE==using_block->Kind())
-	{
-		usingType=USAGE_TYPE_NO;
-	}
 	emit Updated();
 	world->Unlock();
 }
@@ -261,7 +278,7 @@ void Player::Obtain(const short x, const short y, const short z,
 bool Player::Wield(const ushort num) {
 	world->WriteLock();
 	if ( ValidBlock(num) ) {
-		for (ushort i=0; i<=Dwarf::ON_LEGS; ++i ) {
+		for (ushort i=0; i<=Dwarf::ON_LEGS; ++i) {
 			InnerMove(num, i);
 		}
 		emit Updated();
@@ -368,7 +385,7 @@ void Player::ProcessCommand(QString & command) {
 	if ( "give"==request || "get"==request ) {
 		world->WriteLock();
 		Inventory * const inv=PlayerInventory();
-		if ( !creativeMode ) {
+		if ( !creativeMode && 0 ) {
 			emit Notify(tr("You are not in Creative Mode."));
 		} else if ( inv ) {
 			int kind, sub, num;
@@ -399,6 +416,9 @@ void Player::ProcessCommand(QString & command) {
 	} else if ( "what"==request ) {
 		ushort x_what, y_what, z_what;
 		comm_stream >> x_what >> y_what >> z_what;
+		if ( !world->InBounds(x_what, y_what, z_what) ) {
+			emit Notify(tr("Such block is out of loaded world."));
+		}
 		world->ReadLock();
 		if ( creativeMode ) {
 			Examine(x_what, y_what, z_what);
@@ -420,6 +440,46 @@ void Player::ProcessCommand(QString & command) {
 		emit Notify("(__)\\       )\\/\\");
 		emit Notify("    ||----w |");
 		emit Notify("    ||     ||");
+	} else if ( "kindtostring"==request ) {
+		int kind;
+		comm_stream >> kind;
+		emit Notify(tr("Kind %1 is %2.").
+			arg(kind).
+			arg(block_manager.KindToString(kind)));
+	} else if ( "stringtokind"==request ) {
+		QString str;
+		comm_stream >> str;
+		const int kind=block_manager.StringToKind(str);
+		if ( kind==LAST_KIND ) {
+			emit Notify(tr("\"%1\" is unknown kind.").
+				arg(str));
+		} else {
+			emit Notify(tr("Code of kind %1 is %2.").
+				arg(str).
+				arg(kind));
+		}
+	} else if ( "subtostring"==request ) {
+		int sub;
+		comm_stream >> sub;
+		emit Notify(tr("Sub %1 is %2.").
+			arg(sub).
+			arg(BlockManager::SubToString(sub)));
+	} else if ( "stringtosub"==request ) {
+		QString str;
+		comm_stream >> str;
+		const int sub=BlockManager::StringToSub(str);
+		if ( sub==LAST_SUB ) {
+			emit Notify(tr("\"%1\" is unknown substance.").
+				arg(str));
+		} else {
+			emit Notify(tr("Code of substance %1 is %2.").
+				arg(str).
+				arg(sub));
+		}
+	} else if ( "time"==request ) {
+		emit Notify( GetCreativeMode() ?
+			GetWorld()->TimeOfDayStr() :
+			tr("Not in Creative Mode.") );
 	} else {
 		emit Notify(tr("Don't know such command: \"%1\".").
 			arg(command));
@@ -508,13 +568,8 @@ void Player::BlockDestroy() {
 	usingSelfType=USAGE_TYPE_NO;
 
 	emit Destroyed();
-	world->ReloadAllShreds(
-		homeLati,
-		homeLongi,
-		homeX,
-		homeY,
-		homeZ,
-		world->NumShreds());
+	world->ReloadAllShreds(homeLati, homeLongi,
+		homeX, homeY, homeZ);
 }
 
 void Player::WorldSizeReloadStart() {
@@ -572,30 +627,6 @@ void Player::SetPlayer(
 		Qt::DirectConnection);
 } //Player::SetPlayer
 
-void Player::SetNumShreds(ushort num) const {
-	const ushort num_shreds=world->NumShreds();
-	if ( num < 5 ) {
-		emit Notify(tr("Shreds number too small: %1x%1.").arg(num));
-	} else if ( 1 != num%2 ) {
-		emit Notify(tr("Invalid shreds number: %1x%1.").arg(num));
-	} else {
-		const short shift=num/2 - num_shreds/2;
-		world->ReloadAllShreds(
-			//put loaded zone center to where player is
-			world->Latitude()  + x/SHRED_WIDTH - num_shreds/2,
-			world->Longitude() + y/SHRED_WIDTH - num_shreds/2,
-			//new x and y correspond to player stanging
-			//in loaded zone center
-			x - (x/SHRED_WIDTH)*SHRED_WIDTH +
-				(num_shreds/2+shift)*SHRED_WIDTH,
-			y - (y/SHRED_WIDTH)*SHRED_WIDTH +
-				(num_shreds/2+shift)*SHRED_WIDTH,
-			z,
-			num);
-	}
-	emit Notify(tr("Shreds number is %1x%1 now.").arg(num_shreds));
-}
-
 Player::Player(World * const w) :
 		dir(NORTH),
 		world(w),
@@ -647,9 +678,7 @@ Player::Player(World * const w) :
 } //Player::Player
 
 void Player::CleanAll() {
-	world->WriteLock();
 	if ( cleaned ) {
-		world->Unlock();
 		return;
 	}
 	cleaned=true;
@@ -672,8 +701,6 @@ void Player::CleanAll() {
 	sett.setValue("current_y", y-min);
 	sett.setValue("current_z", z);
 	sett.setValue("creative_mode", creativeMode);
-
-	world->Unlock();
 }
 
 Player::~Player() { CleanAll(); }

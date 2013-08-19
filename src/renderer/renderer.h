@@ -137,6 +137,8 @@ public:
     inline void SetUsingPosition( m_Vec3 p );
     inline void SetActiveInventorySlot( int n, bool player_inventory );
     inline void RotateCam( m_Vec3& r);
+    inline void ShowMap();
+    inline void ShowBlockList( bool show );
 
     inline int ViewportWidth()
     {
@@ -188,6 +190,7 @@ private:
     void DrawWorld();
     void DrawSky();
     void DrawHUD();
+    void DrawBlockMenu();
     void DrawConsole();
     void DrawMap();
     void DrawSun();
@@ -238,6 +241,11 @@ private:
 	char* world_map, *world_map_to_draw;
 	unsigned char* world_map_colors, *world_map_colors_to_draw;
 	bool world_map_updated;
+	bool show_map;
+
+
+	//block list
+	bool show_block_list;
 
 
     //shred list
@@ -449,5 +457,16 @@ inline void r_Renderer::SetActiveInventorySlot( int n, bool player_inventory )
     	active_inventory= 0;
 	else
 		active_inventory = 1;
+}
+
+
+inline void r_Renderer::ShowMap()
+{
+    show_map= !show_map;
+}
+
+inline void r_Renderer::ShowBlockList( bool s )
+{
+    show_block_list= s;
 }
 #endif//RENDERER_H

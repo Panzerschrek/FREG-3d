@@ -1,7 +1,7 @@
 /****************************************************************************
 ** Meta object code from reading C++ file 'screen.h'
 **
-** Created: Fri 12. Jul 15:28:40 2013
+** Created: Thu 15. Aug 17:58:43 2013
 **      by: The Qt Meta Object Compiler version 63 (Qt 4.8.3)
 **
 ** WARNING! All changes made in this file will be lost!

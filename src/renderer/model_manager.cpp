@@ -34,46 +34,12 @@ unsigned char r_ModelManager::InitModelTable()
     for( int i= 0; i< R_MAX_KIND * 8; i++ )
         model_table[i]= 0;
 
-    /* for( unsigned int i= 0; i< 6; i++ )
-         model_table[ ( ::PLATE << 3 ) | i ]= r_ModelManager::PLATE;
-
-     for( unsigned int i= 0; i< 6; i++ )
-         model_table[ ( ::DOOR << 3 ) | i ]= r_ModelManager::DOOR;
-
-     for( unsigned int i= 0; i< 6; i++ )
-         model_table[ ( ::DWARF << 3 ) | i ]= r_ModelManager::DWARF;
-
-     for( unsigned int i= 0; i< 6; i++ )
-         model_table[ ( ::RABBIT << 3 ) | i ]= r_ModelManager::RABBIT;
-
-     for( unsigned int i= 0; i< 6; i++ )
-         model_table[ ( ::PILE << 3 ) | i ]= r_ModelManager::PILE;
-
-     for( unsigned int i= 0; i< 6; i++ )
-         model_table[ ( ::WEAPON << 3 ) | i ]= r_ModelManager::PICK;
-
-     for( unsigned int i= 0; i< 6; i++ )
-         model_table[ ( ::CLOCK << 3 ) | i ]= r_ModelManager::CLOCK;*/
-
-
-    /*for( unsigned int i=0; i< R_MAX_KIND; i++ )
-    	for( unsigned int j= 0; j< 6; j++ )
-    		model_table[ ( i<<3 ) | j ]= 0;*/
-
 }
 
 void r_ModelManager::LoadModels()
 {
 
-    //загрузка моделей
-    /*rLoadModel( &models[ r_ModelManager::PLATE ], "models/ladder.fmd" );
-    rLoadModel( &models[ r_ModelManager::DOOR ], "models/small_door.fmd" );
-    rLoadModel( &models[ r_ModelManager::DWARF ], "models/player.fmd" );
-    rLoadModel( &models[ r_ModelManager::RABBIT ], "models/rabbit.fmd" );
-    rLoadModel( &models[ r_ModelManager::PILE ], "models/pile.fmd" );
-    rLoadModel( &models[ r_ModelManager::PICK ], "models/pick.fmd" );
-    rLoadModel( &models[ r_ModelManager::CLOCK ], "models/clock.fmd" );*/
-    LoadModels2();
+    LoadModelsFiles();
 
 
     //подсчёт количество вершин, индексов, подсчёт смещения в новом буфере
@@ -124,7 +90,7 @@ void r_ModelManager::LoadModels()
 
 
 
-void r_ModelManager::LoadModels2()
+void r_ModelManager::LoadModelsFiles()
 {
     std::ifstream f( "models/models.cfg" );
     if( f.fail() )

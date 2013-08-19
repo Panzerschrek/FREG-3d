@@ -9,5 +9,5 @@ void main()
 	vec4 c=  texture2D( tex, tc );
 	if( c.a <= 0.5 )
 		discard;
-	gl_FragColor= c * f_light;
+	gl_FragColor= c* f_light;
 }

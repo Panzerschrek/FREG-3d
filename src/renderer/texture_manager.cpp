@@ -23,7 +23,7 @@
 
 
 //таблица соответствий текстур разным сторонам разных блоков
-unsigned char r_TextureManager::texture_table[ R_MAX_SUB * R_MAX_KIND * 8 ];
+unsigned char r_TextureManager::texture_table[ ( LAST_KIND << 11 ) ];
 //таблица масштабов текстур
 unsigned char r_TextureManager::texture_scale_table[ 256 ];
 //таблица текстурных базисов блока для каждой его стороны и для каждой его ориентации.
@@ -279,9 +279,10 @@ int r_TextureManager::LoadTextures()
                     kind=atoi(str);
                     f>>sub;
                     f>>normal;
-                    texture_table[ normal |
-                                   ( sub << 3 ) |
-                                   ( kind << ( R_MAX_SUB_LOG2 + 3 ) )  ]= tex_id;
+                  //  texture_table[ normal |
+                      //             ( sub << 3 ) |
+                       //            ( kind << ( R_MAX_SUB_LOG2 + 3 ) )  ]= tex_id;
+                       texture_table[ normal | ( kind << 11 ) | (sub<<3 ) ]= tex_id;
                 }
             }
             f>>str;
@@ -500,13 +501,10 @@ void r_TextureManager::InitTextureBasisTable()
 
 void r_TextureManager::InitTextureTable()
 {
-    for( int i=0; i< R_MAX_SUB; i++ )
+
+    for( int i=0; i< ( LAST_KIND << 11 ); i++ )
     {
-        for( int j=0; j< R_MAX_KIND; j++ )
-        {
-            for( int k=0; k<8; k++ )
-                texture_table[ k  |( i << 3 ) | ( j << ( R_MAX_SUB_LOG2 + 3 ) )  ]= 31;
-        }
+        texture_table[i]= 31;
     }
 
     for( int i= 0; i< 256; i++ )

@@ -16,9 +16,9 @@
 	*/
 
 #ifdef OGL21
-#define AMBIENT_SKY_DAY_LIGHT 0.08f
-#define AMBIENT_SKY_NIGHT_LIGHT 0.01f
-#define AMBIENT_FIRE_LIGHT 0.04f
+#define AMBIENT_SKY_DAY_LIGHT 0.1f
+#define AMBIENT_SKY_NIGHT_LIGHT 0.012f
+#define AMBIENT_FIRE_LIGHT 0.16f
 #else//if OGL3.3
 #define AMBIENT_SKY_DAY_LIGHT 0.5f
 #define AMBIENT_SKY_NIGHT_LIGHT 0.001f
@@ -32,6 +32,7 @@
 
 #define INVENTORY_WIDTH 27
 #define PLAYER_INVENTORY_WIDTH 33//in symbols
+
 
 #define MAP_SHRED_COLOR_DEFAULT		m_Vec3( 1.0f, 1.0f, 1.0f )
 #define MAP_SHRED_COLOR_WATER 		m_Vec3( 0.1f, 0.1f, 1.0f )
