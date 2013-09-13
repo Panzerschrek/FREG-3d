@@ -18,23 +18,35 @@
 	* along with FREG. If not, see <http://www.gnu.org/licenses/>.
 	*/
 
-#ifndef WORLDMAP_H
-#define WORLDMAP_H
+#ifndef ANIMAL_H
+#define ANIMAL_H
 
-class QFile;
-class QString;
+#include "Active.h"
 
-class WorldMap {
+class Animal : public Active {
+	Q_OBJECT
+
+	quint8 breath;
+	quint16 satiation;
+
+	virtual quint16 NutritionalValue(int sub) const=0;
+
 	public:
-	WorldMap(const QString *);
-	~WorldMap();
+	void DoRareAction();
+	int  ShouldAct() const;
+	QString FullName() const=0;
+	Animal * IsAnimal();
 
-	long MapSize() const;
-	char TypeOfShred(long longi, long lati);
+	ushort Breath() const;
+	ushort Satiation() const;
+	bool Eat(int sub);
 
-	private:
-	long mapSize;
-	QFile * map;
-}; // class WorldMap
+	protected:
+	void SaveAttributes(QDataStream & out) const;
+
+	public:
+	Animal(int sub, quint16 id);
+	Animal(QDataStream & str, int sub, quint16 id);
+}; // class Animal
 
 #endif

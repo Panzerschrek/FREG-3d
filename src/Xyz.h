@@ -18,23 +18,30 @@
 	* along with FREG. If not, see <http://www.gnu.org/licenses/>.
 	*/
 
-#ifndef WORLDMAP_H
-#define WORLDMAP_H
+#ifndef XYZ_H
+#define XYZ_H
 
-class QFile;
-class QString;
-
-class WorldMap {
+class Xy {
 	public:
-	WorldMap(const QString *);
-	~WorldMap();
+	Xy(short x, short y);
 
-	long MapSize() const;
-	char TypeOfShred(long longi, long lati);
+	short GetX() const { return x; }
+	short GetY() const { return y; }
 
 	private:
-	long mapSize;
-	QFile * map;
-}; // class WorldMap
+	short x, y;
+}; // class Xy
+
+class Xyz {
+	public:
+	Xyz(short x, short y, short z);
+
+	short GetX() const { return x; }
+	short GetY() const { return y; }
+	short GetZ() const { return z; }
+
+	private:
+	short x, y, z;
+}; // class Xyz
 
 #endif

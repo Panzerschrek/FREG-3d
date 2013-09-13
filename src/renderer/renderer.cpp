@@ -23,7 +23,10 @@
 #include "renderer.h"
 #include "../screen.h"
 #include "../Player.h"
+#include "../Active.h"
+#include "../blocks.h"
 #include "rendering_constants.h"
+
 r_Renderer* r_Renderer::current_renderer= NULL;
 
 void r_Renderer::CalculateFPS()
@@ -433,6 +436,9 @@ void r_Renderer::DrawHUD()
     p= AddText( p.x, p.y, &text_color, 1.0, "shreds updated: %d\n", shreds_update_per_second_to_draw );
     p= AddText( p.x, p.y, &text_color, 1.0, deferred_shading ? "deferred shading\n" : "forward rendering\n");
 
+    if( player == NULL )
+        return;
+
     quint16 scale_signs[]= { ' ', 0, '#', 0 };
     //hp string
     text_color.x= text_color.y= text_color.z= 0.8;
@@ -468,10 +474,10 @@ void r_Renderer::DrawHUD()
     sat/=10;
     p= AddText( p.x, p.y, &text_color, 1.0, hp_string );
     text_color.x= 0.1, text_color.y= 0.8, text_color.z= 0.1;
-     for( int i=0; i< 10; i++ )
+    for( int i=0; i< 10; i++ )
         p= AddTextUnicode( p.x, p.y, &text_color, 1, ( sat <= i ) ? scale_signs : scale_signs + 2   );
     text_color.x= text_color.y= text_color.z= 0.8;
-     p= AddText( p.x, p.y, &text_color, 1.0, "]\n" );
+    p= AddText( p.x, p.y, &text_color, 1.0, "]\n" );
 
 
 
@@ -492,8 +498,10 @@ void r_Renderer::DrawHUD()
     text_color.x= text_color.x= 0.8f;
     text_color.z= 0.1f;
     p.y= AddText( p.x, p.y, &text_color, 1.0f, "%s hand: %s %d\n\n", player->IsRightActiveHand() ? "right" : "left",
-                 inv_hand, inv_count ).y;
-     //notify log
+                  inv_hand, inv_count ).y;
+
+show_notify_log:
+    //notify log
     text_color.x= text_color.y= text_color.z= 0.8f;
     for( int i= R_NUMBER_OF_NOTIFY_LINES - 1, n; i>= 0; i-- )
     {
@@ -508,18 +516,36 @@ void r_Renderer::DrawBlockMenu()
 {
     if( !show_block_list )
         return;
-    m_Vec3 c( 1.0, 1.0, 1.0 );
+    m_Vec3 c( 0.9f, 0.9f, 0.9f );
 
     m_Vec3 p( 1.0f - 2.0f * float( DEFAULT_FONT_WIDTH * 42 ) / viewport_x,
               1.0f - 2.0f * float( DEFAULT_FONT_HEIGHT * 2 ) / viewport_y, 0.0 );
+
+    p.y= AddText( p.x, p.y, &c, 1.0f, "Block menu:\n" ).y;
+
+
+    int selected_slot= viewport_y - int( ( cursor_pos.y  + 1.0f ) * 0.5f * viewport_y );
+    selected_slot/= DEFAULT_FONT_HEIGHT;
+    selected_slot-= 2;
+    //printf( "slot: %d\n", selected_slot );
+
+
+    c= m_Vec3( 0.8f, 0.8f, 0.8f );
+    m_Vec3 c2( 1.0f, 1.0f, 0.1f );
     int i;
     for( i= 0; i< Screen::block_list_size/2; i++ )
-        p.y= AddText( p.x, p.y, &c, 1.0f, "%s\n",Screen::block_names[i] ).y;
+        p.y= AddText( p.x, p.y, ( i == selected_slot ) ? &c2 : &c, 1.0f, "%s\n",Screen::block_names[i] ).y;
 
-    p.y= 1.0f - 2.0f * float( DEFAULT_FONT_HEIGHT * 2 ) / viewport_y;
+    if( selected_slot > 0 )
+        selected_slot+= Screen::block_list_size/2;
+
+
+    p.y= 1.0f - 2.0f * float( DEFAULT_FONT_HEIGHT * 3 ) / viewport_y;
     p.x= 1.0f - 2.0f * float( DEFAULT_FONT_WIDTH * 21 ) / viewport_x;
-         for( ; i< Screen::block_list_size; i++ )
-    p.y= AddText( p.x, p.y, &c, 1.0f, "%s\n",Screen::block_names[i] ).y;
+
+    for( ; i< Screen::block_list_size; i++ )
+        p.y= AddText( p.x, p.y,( i == selected_slot ) ? &c2 : &c, 1.0f, "%s\n",Screen::block_names[i] ).y;
+
 }
 
 void r_Renderer::DrawConsole()
@@ -534,8 +560,8 @@ void r_Renderer::DrawConsole()
 
     if( (last_frame_time / 300 ) & 1 )
     {
-    quint16 space[]= { '_', 0 };
-    AddTextUnicode( p.x, p.y, &c, 1.0f, space );
+        quint16 space[]= { '_', 0 };
+        AddTextUnicode( p.x, p.y, &c, 1.0f, space );
     }
 }
 void r_Renderer::DrawMap()
@@ -576,7 +602,10 @@ void r_Renderer::DrawMap()
         player_arrow= '^';
 
 
-    p.y= float( ( 0 + visibly_world_size[1] ) * DEFAULT_FONT_WIDTH*2 ) * 2.0f / float( viewport_y ) - 1.0f;
+    color= m_Vec3( 1.0f, 1.0f, 1.0f );
+    p.y= float( ( 1 + visibly_world_size[1] ) * DEFAULT_FONT_WIDTH*2 ) * 2.0f / float( viewport_y ) - 1.0f;
+    p.x= - float( visibly_world_size[0] * DEFAULT_FONT_WIDTH ) * 2.0f / float( viewport_x );
+    p.y= AddText( p.x, p.y, &color, 1.0f, "World map:\n" ).y;
     for( y=0; y< visibly_world_size[1]; y++ )
     {
         p.x= - float( visibly_world_size[0] * DEFAULT_FONT_WIDTH ) * 2.0f / float( viewport_x );
@@ -628,6 +657,9 @@ void r_Renderer::DrawBuildCube()
 }
 void r_Renderer::DrawInventory()
 {
+    if( player == NULL )
+        return;
+
     //current menu width: player - 33 symbols, inventory - 27 stmbols
     if( player->UsingSelfType() != USAGE_TYPE_OPEN )
         return;
@@ -719,10 +751,10 @@ show_inventory_block:
 
     Block* inv_block;
     if( using_position.z >= 0 )
-    inv= (inv_block= world->GetBlock( ushort( using_position.x ),
-                         ushort( using_position.y ),
-                         ushort( using_position.z ) )
-                         )->HasInventory(); //player->UsingBlock()->HasInventory();HACK!!!
+        inv= (inv_block= world->GetBlock( ushort( using_position.x ),
+                                          ushort( using_position.y ),
+                                          ushort( using_position.z ) )
+             )->HasInventory(); //player->UsingBlock()->HasInventory();HACK!!!
     else
         inv= NULL;
     if( inv == NULL )
@@ -950,7 +982,7 @@ void r_Renderer::Draw()
     DrawSky();
 
 #if OGL21
-	if( !underwater )
+    if( !underwater )
         CopyDepthBuffer();
 #else
     if( !underwater )
@@ -979,7 +1011,7 @@ void r_Renderer::Draw()
 
 
 #if OGL21
-	if( underwater )
+    if( underwater )
         CopyDepthBuffer();
 #endif
 
@@ -1149,13 +1181,13 @@ void r_Renderer::MakePostprocessingGL21()
         viewport_scale.x= viewport_scale.y * float( viewport_x ) / float( viewport_y );
         underwater_postprocess_shader.Uniform( "viewport_scale", viewport_scale );
 
-         m_Vec3 underwater_fog_color= UNDERWATER_FOG_COLOR;
+        m_Vec3 underwater_fog_color= UNDERWATER_FOG_COLOR;
         underwater_fog_color *=
             ( float( player_lighting[0] ) * sky_ambient_light );
         underwater_postprocess_shader.Uniform( "underwater_fog_color", underwater_fog_color );
 
         fullscreen_quad.Show();
-          r_Texture::ResetBinding();
+        r_Texture::ResetBinding();
     }
 }
 void r_Renderer::MakePostProcessing()
@@ -1283,7 +1315,11 @@ void r_Renderer::RenderShadows()
     else if ( angle > ( m_Math::FM_PI - MIN_SUN_HEIGHT ) ) angle= 2.96;
 
     //\F0\E0\F1\F7\B8\F2 \EF\EE\E7\E8\F6\E8\E8 \F6\E5\ED\F2\F0\E0 \EA\E0\F0\F2\FB \F2\E5\ED\E5\E9
-    Shred* player_shred= world->GetShred( player->X(), player->Y() );
+    Shred* player_shred;
+    if( player != NULL )
+        player_shred= world->GetShred( player->X(), player->Y() );
+    else
+        player_shred= world->GetShred( world->NumShreds()/2, world->NumShreds()/2 );
     sun_pos.x= - float( player_shred->Latitude() ) * float( R_SHRED_WIDTH ) - float( R_SHRED_WIDTH/2 );
     sun_pos.y= - float( player_shred->Longitude() ) * float( R_SHRED_WIDTH ) - float( R_SHRED_WIDTH/2 );
     sun_pos.z= - float(R_SHRED_HEIGHT/2 + R_SHRED_HEIGHT/4);
@@ -1940,9 +1976,12 @@ void r_Renderer::UpdateTick()
         world->ReadLock();
 
         short player_coord[3];
-        player_coord[0]= player->X();
-        player_coord[1]= player->Y();
-        player_coord[2]= player->Z();
+        if( player != NULL )
+        {
+            player_coord[0]= player->X();
+            player_coord[1]= player->Y();
+            player_coord[2]= player->Z();
+        }
 
         player_lighting[0]= world->LightMap( player_coord[0], player_coord[1], player_coord[2] );
         player_lighting[1]= player_lighting[0] >>4;
@@ -2727,8 +2766,10 @@ void r_Renderer::UpdateWorldMap()
     char c;
     unsigned char color;
     Shred* s;
-
-    int player_longi= player->GetLongitude() , player_lati= player->GetLatitude();
+     int player_longi,player_lati;
+    if( player != NULL )
+        player_longi= player->GetLongitude() , player_lati= player->GetLatitude();
+    else player_longi= player_longi= -1;
     for( x=0; x< visibly_world_size[0]; x++ )
     {
 

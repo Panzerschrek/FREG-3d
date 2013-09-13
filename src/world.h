@@ -27,7 +27,6 @@
 class WorldMap;
 class Block;
 class Shred;
-class DeferredAction;
 class ShredStorage;
 class QByteArray;
 class QReadWriteLock;
@@ -38,6 +37,11 @@ const uchar MOON_LIGHT_FACTOR=1;
 const uchar  SUN_LIGHT_FACTOR=8;
 
 class World : public QThread {
+	/** \class World world.h
+	 * \brief World provides global physics and shred connection.
+	 *
+	 * Designed to be single.
+	 */
 	Q_OBJECT
 
 	static const ushort TIME_STEPS_IN_SEC=10;
@@ -47,9 +51,9 @@ class World : public QThread {
 	Shred ** shreds;
 	//    N
 	//    |  E
-	// W--+--> latitude
+	// W--+--> latitude ( x for shreds )
 	//    |
-	//  S v longitude
+	//  S v longitude ( y for shreds )
 	// center of active zone:
 	long longitude, latitude;
 	long spawnLongi, spawnLati;
@@ -65,13 +69,12 @@ class World : public QThread {
 
 	long newLati, newLongi;
 	ushort newX, newY, newZ;
-	volatile bool toReSet;
+	/// UP for no reset, DOWN for full reset, NSEW for side shift.
+	volatile int toResetDir;
 
 	uchar sunMoonFactor;
 
-	QList<DeferredAction *> defActions;
 	ShredStorage * shredStorage;
-
 	Shred * shredMemoryPool;
 
 	// Block work section
@@ -79,15 +82,11 @@ class World : public QThread {
 	Block * GetBlock(ushort x, ushort y, ushort z) const;
 	Shred * GetShred(ushort i, ushort j) const;
 
-	void AddDeferredAction(DeferredAction *);
-	void RemDeferredAction(DeferredAction *);
 	private:
 	/// Puts block to coordinates xyz and activates it.
 	void SetBlock(Block * block, ushort x, ushort y, ushort z);
 	/// Puts block to coordinates and not activates it.
 	void PutBlock(Block * block, ushort x, ushort y, ushort z);
-	/// Puts normal block to coordinates.
-	void PutNormalBlock(int sub, ushort x, ushort y, ushort z);
 	static Block * Normal(int sub);
 	static Block * NewBlock(int kind, int sub);
 	static void DeleteBlock(Block * block);
@@ -108,18 +107,18 @@ class World : public QThread {
 	short ClampZ(short z) const;
 
 	void SunShineVertical  (short x, short y, short z=HEIGHT-2,
-			uchar level=9);
+			uchar level=MAX_LIGHT_RADIUS);
 	void SunShineHorizontal(short x, short y, short z);
 	/// If init is false, light will not spread from non-invisible blocks.
 	void Shine(ushort x, ushort y, ushort z, uchar level, bool init=false);
 	void RemoveSunLight(short x, short y, short z);
-
-
+	void AddFireLight   (short x, short y, short z, uchar level);
+	private:
 	bool SetSunLightMap (uchar level, ushort x, ushort y, ushort z);
 	bool SetFireLightMap(uchar level, ushort x, ushort y, ushort z);
-	void AddFireLight   (short x, short y, short z, uchar level);
+
 	void RemoveFireLight(short x, short y, short z);
-private:
+
 	/// Called when block is moved.
 	void ReEnlighten(ushort x, ushort y, ushort z);
 	/// Called when block is built.
@@ -139,7 +138,6 @@ private:
 			ushort & x_targ, ushort & y_targ, ushort & z_targ,
 			quint8 dir) const;
 	ushort NumShreds() const;
-	ushort NumActiveShreds() const;
 	static quint8 TurnRight(quint8 dir);
 	static quint8 TurnLeft (quint8 dir);
 	static quint8 Anti(quint8 dir);
@@ -178,14 +176,10 @@ private:
 	/// Check and move
 	bool Move(ushort x, ushort y, ushort z, quint8 dir);
 	/// This CAN move blocks, but not xyz block.
-	bool CanMove(
-			ushort x,    ushort y,    ushort z,
-			ushort x_to, ushort y_to, ushort z_to,
-			quint8 dir);
-	void NoCheckMove(
-			ushort x,    ushort y,    ushort z,
-			ushort x_to, ushort y_to, ushort z_to,
-			quint8 dir);
+	bool CanMove(ushort x, ushort y, ushort z,
+			ushort x_to, ushort y_to, ushort z_to, quint8 dir);
+	void NoCheckMove(ushort x, ushort y, ushort z,
+			ushort x_to, ushort y_to, ushort z_to, quint8 dir);
 	void Jump(ushort x, ushort y, ushort z, quint8 dir);
 
 	// Time section
@@ -210,9 +204,6 @@ private:
 			bool anyway=false);
 	/// Returns true on success. Gets a string and inscribes block.
 	bool Inscribe(ushort x, ushort y, ushort z);
-	/// No bounds checks inside, use carefully.
-	void Eat(ushort i, ushort j, ushort k,
-			ushort i_food, ushort j_food, ushort k_food);
 
 	// Inventory functions section
 	private:
@@ -244,7 +235,9 @@ private:
 	/// Also saves all shreds.
 	void DeleteAllShreds();
 	void LoadAllShreds();
+	void ReloadShreds(int direction);
 	void run();
+	Shred ** FindShred(ushort x, ushort y) const;
 
 	public:
 	QReadWriteLock * GetLock() const;
@@ -253,16 +246,14 @@ private:
 	bool TryReadLock();
 	void Unlock();
 
-	void EmitNotify(const QString & str) const;
-
 	public:
 	World(const QString &);
 	~World();
 
 	public slots:
 	void CleanAll();
-	void ReloadShreds(int);
 	void PhysEvents();
+	void SetReloadShreds(int direction);
 
 	signals:
 	void Notify(const QString &) const;
@@ -280,5 +271,7 @@ private:
 	void FinishReloadAll();
 	void ExitReceived();
 }; // class World
+
+extern World * world;
 
 #endif

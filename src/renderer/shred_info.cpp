@@ -20,6 +20,7 @@
 #include "renderer.h"
 #include "texture_manager.h"
 #include "../BlockManager.h"
+#include "../blocks.h"
 
 void r_ShredInfo::UpdateCube( short x0, short y0, short z0, short x1, short y1, short z1 )
 {
@@ -606,7 +607,7 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
                 {
                     b= shred->GetBlock( x, y, z + 1 );
                     unsigned char s= b->Sub(), k= b->Kind(), d= b->GetDir();
-                    model_list.AddModel( k,d, r_TextureManager::GetBlockTexture( b->GetId(), 0, 0 ), shred->Lightmap( x, y, z + 1 ), x + X, y + Y, z );
+                    model_list.AddModel( b->GetId(), d, r_TextureManager::GetBlockTexture( b->GetId(), 0, 0 ), shred->Lightmap( x, y, z + 1 ), x + X, y + Y, z );
 				}
                 z1&= 3;
 
@@ -697,7 +698,7 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
             {
                 b= shred->GetBlock( x, y, z + 1 );
                 unsigned char s= b->Sub(), k= b->Kind(), d= b->GetDir();
-                model_list.AddModel( k,d, r_TextureManager::GetBlockTexture( b->GetId(), 0, 0 ), shred->Lightmap( x, y, z + 1 ), x + X, y + Y, z );
+                model_list.AddModel( b->GetId(), d, r_TextureManager::GetBlockTexture( b->GetId(), 0, 0 ), shred->Lightmap( x, y, z + 1 ), x + X, y + Y, z );
             }
             z1&= 3;
 
@@ -787,7 +788,7 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
             {
                 b= shred->GetBlock( x, y, z + 1 );
                 unsigned char s= b->Sub(), k= b->Kind(), d= b->GetDir();
-                model_list.AddModel( k,d, r_TextureManager::GetBlockTexture( b->GetId(), 0, 0 ), shred->Lightmap( x, y, z + 1 ), x + X, y + Y, z );
+                model_list.AddModel( b->GetId(), d, r_TextureManager::GetBlockTexture( b->GetId(), 0, 0 ), shred->Lightmap( x, y, z + 1 ), x + X, y + Y, z );
             }
             z1&= 3;
 
@@ -877,7 +878,7 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
         {
             b= shred->GetBlock( x, y, z + 1 );
             unsigned char s= b->Sub(), k= b->Kind(), d= b->GetDir();
-            model_list.AddModel( k,d, r_TextureManager::GetBlockTexture( b->GetId(), 0, 0 ), shred->Lightmap( x, y, z + 1 ), x + X, y + Y, z );
+            model_list.AddModel( b->GetId(), d, r_TextureManager::GetBlockTexture( b->GetId(), 0, 0 ), shred->Lightmap( x, y, z + 1 ), x + X, y + Y, z );
         }
         z1&= 3;
 

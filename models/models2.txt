@@ -94,7 +94,6 @@ models/ladder.fmd
 	blocks
 	{
 		ladder wood
-		ladder nullstone
 	}
 }
 
@@ -118,7 +117,7 @@ models/player.fmd
 	}
 	blocks
 	{
-		intellectual meat_of_intellectual
+		dwarf h_meat
 	}
 }
 
@@ -139,15 +138,14 @@ models/rabbit.fmd
 {
 	rotation_variants
 	{
-		south
 		east
-		north
 		west
-
+		south
+		north
 	}
 	blocks
 	{
-		rabbit animal_meat
+		rabbit a_meat
 	}
 }
 
@@ -159,7 +157,7 @@ models/spear.fmd
 	}
 	blocks
 	{
-		weapon iron
+		weapoon iron
 	}
 }
 
@@ -171,8 +169,7 @@ models/stake.fmd
 	}
 	blocks
 	{
-		weapon wood
+		weapoon wood
 	}
 }
 
-fend

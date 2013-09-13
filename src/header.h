@@ -25,13 +25,15 @@
 #include <QtGlobal>
 
 #ifdef Q_OS_WIN32
-	#include <windows.h>
-	inline void usleep( int n ) { Sleep(n/1000); }
+#include <windows.h>
+inline void usleep(int n){ Sleep(n/1000);}
+#endif
+
+#if ( QT_VERSION < QT_VERSION_CHECK(4, 8, 0) )
+#define Q_UNLIKELY
 #endif
 
 const ushort SHRED_WIDTH=16;
-const ushort SHRED_WIDTH_SHIFT=4;
-const ushort SHRED_COORDS_BITS=0xF;
 const ushort HEIGHT=128;
 
 const ushort SECONDS_IN_HOUR=60;
@@ -46,18 +48,21 @@ const ushort SECONDS_IN_DAYLIGHT=SECONDS_IN_DAY-END_OF_NIGHT;
 const ushort MAX_DURABILITY=100;
 const ushort MAX_BREATH=60;
 
+const uchar MAX_LIGHT_RADIUS=15;
+
 enum shred_type {
-	SHRED_NULLMOUNTAIN='#',
-	SHRED_PLAIN='.',
-	SHRED_TESTSHRED='t',
-	SHRED_PYRAMID='p',
-	SHRED_HILL='+',
-	SHRED_DESERT=':',
-	SHRED_WATER='~',
-	SHRED_FOREST='%',
-	SHRED_MOUNTAIN='^',
-	SHRED_EMPTY='_',
-	SHRED_NORMAL_UNDERGROUND='-'
+	SHRED_NULLMOUNTAIN = '#',
+	SHRED_PLAIN = '.',
+	SHRED_TESTSHRED = 't',
+	SHRED_PYRAMID = 'p',
+	SHRED_HILL = '+',
+	SHRED_DESERT = ':',
+	SHRED_WATER = '~',
+	SHRED_FOREST = '%',
+	SHRED_MOUNTAIN = '^',
+	SHRED_EMPTY = '_',
+	SHRED_NORMAL_UNDERGROUND = '-',
+	SHRED_CHAOS = '!'
 };
 
 const char DEFAULT_SHRED=SHRED_PLAIN;
@@ -127,6 +132,10 @@ enum kinds {
 	LAST_KIND // keep it last in this list.
 }; // enum kinds
 /// Substance block is made from.
+/** Don't make blocks from SKY and STAR, they are special for shred loading
+ *  and saving.
+ *  Don't make non-BLOCK blocks from air, otherwise leaks are possible.
+ */
 enum subs {
 	// do not change order, this will break file compatibility.
 	// add new substances right before LAST_SUB.
@@ -169,16 +178,5 @@ enum transparency {
 	NONSTANDARD=6,
 	UNDEF // temporary, doesn't appear in world.
 }; // enum transparency
-
-typedef struct {
-	int x;
-	int y;
-} xy;
-
-typedef struct {
-	int x;
-	int y;
-	int z;
-} xyz;
 
 #endif

@@ -1,7 +1,7 @@
 /****************************************************************************
 ** Meta object code from reading C++ file 'Player.h'
 **
-** Created: Thu 15. Aug 17:58:43 2013
+** Created: Wed 11. Sep 12:45:52 2013
 **      by: The Qt Meta Object Compiler version 63 (Qt 4.8.3)
 **
 ** WARNING! All changes made in this file will be lost!
@@ -39,12 +39,12 @@ static const uint qt_meta_data_Player[] = {
      104,    7,    7,    7, 0x05,
 
  // slots: signature, parameters, type, tag, flags
-     116,    7,    7,    7, 0x0a,
-     131,  127,    7,    7, 0x0a,
-     150,    7,    7,    7, 0x0a,
-     165,    7,    7,    7, 0x0a,
-     188,    7,    7,    7, 0x0a,
-     230,  212,    7,    7, 0x0a,
+     116,    7,    7,    7, 0x08,
+     131,  127,    7,    7, 0x08,
+     150,    7,    7,    7, 0x08,
+     183,  165,    7,    7, 0x08,
+     215,  127,    7,    7, 0x08,
+     230,    7,    7,    7, 0x28,
 
        0        // eod
 };
@@ -54,9 +54,9 @@ static const char qt_meta_stringdata_Player[] = {
     "Notify(QString)\0OverstepBorder(int)\0"
     "Updated()\0GetString(QString&)\0Destroyed()\0"
     "CleanAll()\0dir\0CheckOverstep(int)\0"
-    "BlockDestroy()\0WorldSizeReloadStart()\0"
-    "WorldSizeReloadFinish()\0set_x,set_y,set_z\0"
+    "BlockDestroy()\0set_x,set_y,set_z\0"
     "SetPlayer(ushort,ushort,ushort)\0"
+    "UpdateXYZ(int)\0UpdateXYZ()\0"
 };
 
 void Player::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
@@ -74,9 +74,9 @@ void Player::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void
         case 6: _t->CleanAll(); break;
         case 7: _t->CheckOverstep((*reinterpret_cast< int(*)>(_a[1]))); break;
         case 8: _t->BlockDestroy(); break;
-        case 9: _t->WorldSizeReloadStart(); break;
-        case 10: _t->WorldSizeReloadFinish(); break;
-        case 11: _t->SetPlayer((*reinterpret_cast< ushort(*)>(_a[1])),(*reinterpret_cast< ushort(*)>(_a[2])),(*reinterpret_cast< ushort(*)>(_a[3]))); break;
+        case 9: _t->SetPlayer((*reinterpret_cast< ushort(*)>(_a[1])),(*reinterpret_cast< ushort(*)>(_a[2])),(*reinterpret_cast< ushort(*)>(_a[3]))); break;
+        case 10: _t->UpdateXYZ((*reinterpret_cast< int(*)>(_a[1]))); break;
+        case 11: _t->UpdateXYZ(); break;
         default: ;
         }
     }

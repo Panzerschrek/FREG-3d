@@ -19,19 +19,20 @@
 
 #include "model_manager.h"
 #include "../header.h"
+#include "../BlockManager.h"
 #include <fstream>
 
-unsigned char r_ModelManager::model_table[ R_MAX_KIND * 8 ];
+unsigned char r_ModelManager::model_table[ (LAST_KIND<<8)  * 8 ];
 
-unsigned char r_ModelManager::GetModelId( unsigned char kind, unsigned char direction )
+unsigned char r_ModelManager::GetModelId( unsigned short block_id, unsigned char direction )
 {
-    return model_table[ ( kind << 3 ) | direction ];
+    return model_table[ ( block_id << 3 ) | direction ];
 
 }
 
 unsigned char r_ModelManager::InitModelTable()
 {
-    for( int i= 0; i< R_MAX_KIND * 8; i++ )
+    for( int i= 0; i< (LAST_KIND<<8) * 8; i++ )
         model_table[i]= 0;
 
 }
@@ -73,7 +74,7 @@ void r_ModelManager::LoadModels()
                                    index_pointer[i] * sizeof( quint16 ) );
     }
 
-	#ifndef OGL21
+#ifndef OGL21
     short swiborg_data[]= { 0,0,64,10, 5,5,70,10, 6,5,70,10, 23,14,63,10 };
     glGenBuffers( 1, &texture_buffer );
     glBindBuffer( GL_TEXTURE_BUFFER, texture_buffer );
@@ -83,7 +84,7 @@ void r_ModelManager::LoadModels()
     glBindTexture( GL_TEXTURE_BUFFER, tex );
     //glPixelStorei   ( GL_UNPACK_ALIGNMENT, 1 );
     glTexBuffer( GL_TEXTURE_BUFFER, GL_RGBA16I, texture_buffer );
-	#endif
+#endif
     //model_instance_data= NULL;
     // LoadModels2();
 }
@@ -99,8 +100,11 @@ void r_ModelManager::LoadModelsFiles()
     char str[64];
     char model_name[128];
     unsigned int i= 0, source_model_id;
+    unsigned short block_id;
     unsigned int model_rotation;// направление, в котором модель хранится в файле
-    int kind;
+    unsigned int rotation_variants[4];
+    unsigned int rotation_variants_num;
+    unsigned short kind, sub;
 
     qint16 transform_matrices[]=
     {
@@ -109,31 +113,40 @@ void r_ModelManager::LoadModelsFiles()
         0, 0, 1,
         0, 0, 0,// no rotation
 
-        0,    1, 0,
-        -1,	  0, 0,
-        0,    0,  1,
-        -1024,	 0,  0,  // 90 deg
-
         -1, 	0, 	  0,
         0, 		-1,   0,
         0, 		0, 	  1,
         -1024, 	-1024, 	 0, //180 deg
 
-        0,   -1,  0,
+         0,    1, 0,
+        -1,	  0, 0,
+        0,    0,  1,
+        -1024,	 0,  0,  // 90 deg
+
+       0,   -1,  0,
         1,	  0,  0,
         0,    0,  1,
         0 , -1024,  0,  // 270 ( -90) deg
+
+
     };
     short* mat;
     while( !f.eof() )
     {
         f>>model_name;
         if( rLoadModel( &models[i], model_name ) )
-            printf( "error. model \"%s\" not found.\n", model_name );
+        {
+            if( !strcmp( "fend", model_name ) )
+            {
+                f.close();
+                return;
+            }
+            else
+                printf( "error. model \"%s\" not found.\n", model_name );
+        }
         source_model_id= i;
         i++;
 
-        kind= -1;
 
         f>>str;
         if( str[0] != '{' || str[1] != 0 )
@@ -142,223 +155,86 @@ void r_ModelManager::LoadModelsFiles()
             return;
         }
 
-        f>>str;
-        do
+        while( !f.eof() ) //one model data
         {
-            if( !strcmp( str, "rotation" ) )
+            f>>str;
+            if( str[0] == '}' && str[1] == 0 )
+                break;
+            if( !strcmp( str, "rotation_variants" ) )
             {
-                if( kind == -1 )
-                {
-                    printf( "error. kind must be a first property of model: %s\n", model_name );
-                    return;
-                }
                 f>>str;
-                if( !strcmp( str, "north" ) )
-                    model_rotation= NORTH;
-                else if( !strcmp( str, "south" ) )
-                    model_rotation= SOUTH;
-                else if( !strcmp( str, "east" ) )
-                    model_rotation= EAST;
-                else if( !strcmp( str, "west" ) )
-                    model_rotation= WEST;
-                else
-                    printf( "error, unknown model rotation: %s in %s\n", str, model_name );
-                // model_table[ ( kind << 3 ) | model_rotation ]= source_model_id;
-            }
-            else if( !strcmp( str, "rotation_variants" ) )
-            {
-                if( kind == -1 )
+                if( ! (str[0]== '{' && str[1] == 0 ) )
                 {
-                    printf( "error. kind must be a first property of model: %s\n", model_name );
-                    return;
+                    printf( "model conig parsing error - rotation variants\n" );
+
                 }
-                f>>str;
-                if( str[0] != '{' || str[1] != 0 )
+                rotation_variants_num= 1;
+                rotation_variants[0]= NORTH;
+                while(  !f.eof() )
                 {
-                    printf( "parse error. rotation variants.\n" );
-                    return;
-                }
-                while ( !( str[0] == '}' && str[1] == 0 ) )
-                {
+
                     f>>str;
                     if( str[0] == '}' && str[1] == 0 )
                         break;
 
-                    if( !strcmp( str, "north" ) )
-                    {
-                        if( model_rotation == NORTH ) //ничего делать не надо
-                            mat= NULL;
-                        else if( model_rotation == SOUTH )
-                            mat= transform_matrices + 2 * 12;
-                        else if( model_rotation == EAST )
-                            mat= transform_matrices + 3 * 12;
-                        else if( model_rotation == WEST )
-                            mat= transform_matrices + 1 * 12;
-                        if( mat != NULL )//поворачиваем модель
-                        {
-                            models[i].index_count= models[ source_model_id ].index_count;
-                            models[i].vertex_count= models[ source_model_id ].vertex_count;
-                            models[i].indeces= new quint16[ models[i].index_count ];
-                            models[i].vertices= new fmd_Vertex[ models[i].vertex_count ];
-                            rTransformModel( &models[i], &models[ source_model_id ], mat );
-                            memcpy( models[i].indeces, models[ source_model_id ].indeces, sizeof( qint16 ) * models[i].index_count );
-                            model_table[ ( kind << 3 ) | NORTH ]= i;
-                            i++;
-                        }
-                        else
-                            model_table[ ( kind << 3 ) | NORTH ]= source_model_id;
-                    }
-                    else if( !strcmp( str, "south" ) )
-                    {
-                        if( model_rotation == NORTH )
-                            mat= transform_matrices + 2 * 12;
-                        else if( model_rotation == SOUTH )
-                            mat= NULL;
-                        else if( model_rotation == EAST )
-                            mat= transform_matrices + 1 * 12;
-                        else if( model_rotation == WEST )
-                            mat= transform_matrices + 3 * 12;
-                        if( mat != NULL )//поворачиваем модель
-                        {
-                            models[i].index_count= models[ source_model_id ].index_count;
-                            models[i].vertex_count= models[ source_model_id ].vertex_count;
-                            models[i].indeces= new quint16[ models[i].index_count ];
-                            models[i].vertices= new fmd_Vertex[ models[i].vertex_count ];
-                            rTransformModel( &models[i], &models[ source_model_id ], mat );
-                            memcpy( models[i].indeces, models[ source_model_id ].indeces, sizeof( qint16 ) * models[i].index_count );
-                            model_table[ ( kind << 3 ) | SOUTH ]= i;
-                            i++;
-                        }
-                        else
-                            model_table[ ( kind << 3 ) | SOUTH ]= source_model_id;
-                    }
-                    else if( !strcmp( str, "east" ) )
-                    {
-                        if( model_rotation == NORTH )
-                            mat= transform_matrices + 1 * 12;
-                        else if( model_rotation == SOUTH )
-                            mat= transform_matrices + 3 * 12;
-                        else if( model_rotation == EAST )
-                            mat= NULL;
-                        else if( model_rotation == WEST )
-                            mat= transform_matrices + 2 * 12;
-                        if( mat != NULL )//поворачиваем модель
-                        {
-                            models[i].index_count= models[ source_model_id ].index_count;
-                            models[i].vertex_count= models[ source_model_id ].vertex_count;
-                            models[i].indeces= new quint16[ models[i].index_count ];
-                            models[i].vertices= new fmd_Vertex[ models[i].vertex_count ];
-                            rTransformModel( &models[i], &models[ source_model_id ], mat );
-                            memcpy( models[i].indeces, models[ source_model_id ].indeces, sizeof( qint16 ) * models[i].index_count );
-                            model_table[ ( kind << 3 ) | EAST ]= i;
-                            i++;
-                        }
-                        else
-                            model_table[ ( kind << 3 ) | EAST ]= source_model_id;
-                    }
-                    else if( !strcmp( str, "west" ) )
-                    {
-                        if( model_rotation == NORTH )
-                            mat= transform_matrices + 3 * 12;
-                        else if( model_rotation == SOUTH )
-                            mat= transform_matrices + 1 * 12;
-                        else if( model_rotation == EAST )
-                            mat= transform_matrices + 2 * 12;
-                        else if( model_rotation == WEST )
-                            mat= NULL;
-                        if( mat != NULL )//поворачиваем модель
-                        {
-                            models[i].index_count= models[ source_model_id ].index_count;
-                            models[i].vertex_count= models[ source_model_id ].vertex_count;
-                            models[i].indeces= new quint16[ models[i].index_count ];
-                            models[i].vertices= new fmd_Vertex[ models[i].vertex_count ];
-                            rTransformModel( &models[i], &models[ source_model_id ], mat );
-                            memcpy( models[i].indeces, models[ source_model_id ].indeces, sizeof( qint16 ) * models[i].index_count );
-                            model_table[ ( kind << 3 ) | WEST ]= i;
-                            i++;
-                        }
-                        else
-                            model_table[ ( kind << 3 ) | WEST ]= source_model_id;
-                    }
-                    else if( !strcmp( str, "east_west" ) || !strcmp( str, "west_east" ) )
-                    {
-                        if( model_rotation == NORTH )
-                            mat= transform_matrices + 3 * 12;
-                        else if( model_rotation == SOUTH )
-                            mat= transform_matrices + 1 * 12;
-                        else if( model_rotation == EAST )
-                            mat= NULL;
-                        else if( model_rotation == WEST )
-                            mat= NULL;
-                        if( mat != NULL )//поворачиваем модель
-                        {
-                            models[i].index_count= models[ source_model_id ].index_count;
-                            models[i].vertex_count= models[ source_model_id ].vertex_count;
-                            models[i].indeces= new quint16[ models[i].index_count ];
-                            models[i].vertices= new fmd_Vertex[ models[i].vertex_count ];
-                            rTransformModel( &models[i], &models[ source_model_id ], mat );
-                            memcpy( models[i].indeces, models[ source_model_id ].indeces, sizeof( qint16 ) * models[i].index_count );
-                            model_table[ ( kind << 3 ) | WEST ]= model_table[ ( kind << 3 ) | EAST ]= i;
-                            i++;
-                        }
-                        else
-                        {
-                            model_table[ ( kind << 3 ) | WEST ]=
-                                model_table[ ( kind << 3 ) | EAST ]= source_model_id;
-                        }
-                    }
-                    else if( !strcmp( str, "north_south" ) || !strcmp( str, "south_north" ) )
-                    {
-                        if( model_rotation == NORTH )
-                            mat= NULL;
-                        else if( model_rotation == SOUTH )
-                            mat= NULL;
-                        else if( model_rotation == EAST )
-                            mat= transform_matrices+ 1 * 12;
-                        else if( model_rotation == WEST )
-                            mat= transform_matrices+ 3 * 12;
-                        if( mat != NULL )//поворачиваем модель
-                        {
-                            models[i].index_count= models[ source_model_id ].index_count;
-                            models[i].vertex_count= models[ source_model_id ].vertex_count;
-                            models[i].indeces= new quint16[ models[i].index_count ];
-                            models[i].vertices= new fmd_Vertex[ models[i].vertex_count ];
-                            rTransformModel( &models[i], &models[ source_model_id ], mat );
-                            memcpy( models[i].indeces, models[ source_model_id ].indeces, sizeof( qint16 ) * models[i].index_count );
-                            model_table[ ( kind << 3 ) | NORTH ]= model_table[ ( kind << 3 ) | SOUTH ]= i;
-                            i++;
-                        }
-                        else
-                        {
-                            model_table[ ( kind << 3 ) | SOUTH ]=
-                                model_table[ ( kind << 3 ) | NORTH ]= source_model_id;
-                        }
-                    }
-                    else if( !strcmp( str, "universal" ) )
-                    {
-                    	model_table[ ( kind << 3 ) | UP ]= model_table[ ( kind << 3 ) | DOWN ]=
-                        model_table[ ( kind << 3 ) | EAST ]= model_table[ ( kind << 3 ) | WEST ]=
-                                model_table[ ( kind << 3 ) | NORTH ]= model_table[ ( kind << 3 ) | SOUTH ]= source_model_id;
+                    if( !strcmp( str, "east" ) ) rotation_variants[ rotation_variants_num ]= EAST;
+                    else if( !strcmp( str, "west" ) ) rotation_variants[ rotation_variants_num ]= WEST;
+                    else if( !strcmp( str, "south" ) ) rotation_variants[ rotation_variants_num ]= SOUTH;
+                    else if( !strcmp( str, "north" ) ) rotation_variants[ rotation_variants_num ]= NORTH;
+                    else if( !strcmp( str, "universal" ) ) rotation_variants[ rotation_variants_num ]= NORTH;
 
+                    if( rotation_variants[ rotation_variants_num ] != NORTH )
+                    {
+                        models[i].index_count= models[ source_model_id ].index_count;
+                        models[i].vertex_count= models[ source_model_id ].vertex_count;
+                        models[i].indeces= new quint16[ models[i].index_count ];
+                        models[i].vertices= new fmd_Vertex[ models[i].vertex_count ];
+                        rTransformModel( &models[i], &models[ source_model_id ],
+                                         transform_matrices +  (rotation_variants[ rotation_variants_num ] - 2)*12 );
+                        memcpy( models[i].indeces, models[ source_model_id ].indeces, sizeof( qint16 ) * models[i].index_count );
+                        i++;
+                        rotation_variants_num++;
                     }
-                    else
-                        printf( "error. unknown model rotation variant: %s in %s\n", str, model_name );
+
 
                 }
             }
-            else if( !strcmp( str, "kind" ) )
+            else if( !strcmp( str, "blocks" ) )
             {
                 f>>str;
-                kind= atoi( str );
-                model_table[ ( kind << 3 ) | UP ]=
-                model_table[ ( kind << 3 ) | DOWN ]= source_model_id;//костыль для поворота вверх и вниз
-            }
-            else
-                printf( "error. Unknown model property: %s in %s\n", str, model_name );
+                if( ! (str[0]== '{' && str[1] == 0 ) )
+                {
+                    printf( "model conig parsing error - blocks\n" );
 
-            f>>str;
+                }
+                while(  !f.eof() )
+                {
+
+                    f>>str;
+                    if( str[0] == '}' && str[1] == 0 )
+                        break;
+
+                    QString qstr(str);
+                    kind= BlockManager::StringToKind( qstr );
+                    f>>str;
+                    qstr= str;
+                    sub= BlockManager::StringToSub( qstr );
+                    if( kind < LAST_KIND && sub < LAST_SUB )
+                    {
+                        unsigned short block_id= BlockManager::MakeId( kind, sub );
+
+                        for( int j= 0; j< 8; j++ )
+                            model_table[ ( block_id << 3 ) | j ] = source_model_id;
+                        for( int j= source_model_id; j< i; j++ )
+                            model_table[ ( block_id << 3 ) | rotation_variants[ j - source_model_id ] ]= j;
+
+                    }
+                    else
+                        printf( "model: %s unknown kind\sub\n", model_name );
+                }
+            }
         }
-        while ( !( str[0] == '}' && str[1] == 0 )  );
+
     }
     model_count= i;
     f.close();
@@ -369,34 +245,34 @@ void r_ModelManager::LoadModelsFiles()
 void r_ModelManager::DrawModels( const r_GLSLProgram* shader )
 {
     // return;
-    #ifdef OGL21
+#ifdef OGL21
     model_buffer.Bind();
 
     unsigned int un_id_pos= shader->GetUniformId( "pos" )
-    , un_id_light= shader->GetUniformId( "light" );
+                            , un_id_light= shader->GetUniformId( "light" );
 
     m_Vec3 pos, light;
     short* inst_data;
     for( unsigned int i= 0; i< model_count; i++ )
     {
-    	inst_data= model_instance_data + instance_data_pointer[i] * 4;
-    	for( unsigned int j= 0; j< instance_model_count[i]; j++ )
-    	{
-    		pos.x= float( inst_data[ j * 4     ] );
-    		pos.y= float( inst_data[ j * 4 + 1 ] );
-    		pos.z= float( inst_data[ j * 4 + 2 ] );
-			light.x= float( ( inst_data[ j * 4 + 3 ] >> 8 ) & 15 );
-			light.y= float( inst_data[ j * 4 + 3 ] >> 12 );
-			light.z= float( inst_data[ j * 4 + 3 ] & 255 );
-    		shader->Uniform( un_id_pos, pos );
-    		shader->Uniform( un_id_light, light );
-    		glDrawElements( GL_TRIANGLES, index_count[i],
-							 GL_UNSIGNED_SHORT, (void*) (index_pointer[i] * sizeof(quint16)) );
-    	}
+        inst_data= model_instance_data + instance_data_pointer[i] * 4;
+        for( unsigned int j= 0; j< instance_model_count[i]; j++ )
+        {
+            pos.x= float( inst_data[ j * 4     ] );
+            pos.y= float( inst_data[ j * 4 + 1 ] );
+            pos.z= float( inst_data[ j * 4 + 2 ] );
+            light.x= float( ( inst_data[ j * 4 + 3 ] >> 8 ) & 15 );
+            light.y= float( inst_data[ j * 4 + 3 ] >> 12 );
+            light.z= float( inst_data[ j * 4 + 3 ] & 255 );
+            shader->Uniform( un_id_pos, pos );
+            shader->Uniform( un_id_light, light );
+            glDrawElements( GL_TRIANGLES, index_count[i],
+                            GL_UNSIGNED_SHORT, (void*) (index_pointer[i] * sizeof(quint16)) );
+        }
     }
 
 
-    #else
+#else
 
     glActiveTexture( GL_TEXTURE0 + 2 );
     glBindTexture( GL_TEXTURE_BUFFER, tex );
@@ -413,7 +289,7 @@ void r_ModelManager::DrawModels( const r_GLSLProgram* shader )
                                      (void*) (index_pointer[i] * sizeof(quint16)), instance_model_count[i] );
         }
     }
-    #endif
+#endif
 }
 
 void r_ModelManager::InitVertexBuffer()
@@ -487,10 +363,10 @@ void r_ModelManager::AddModels( r_LocalModelList* model_list )
 void r_ModelManager::GenerateInstanceDataBuffer()
 {
     //return;
-    #ifndef OGL21
+#ifndef OGL21
     glBindBuffer( GL_TEXTURE_BUFFER, texture_buffer );
     glBufferSubData( GL_TEXTURE_BUFFER, 0, 2 * 4 * instance_total_model_count, model_instance_data );
-    #endif
+#endif
 }
 
 void r_LocalModelList::AllocateMemory()
@@ -527,10 +403,10 @@ void r_LocalModelList::Clear()
     }
 }
 
-void r_LocalModelList::AddModel( unsigned char kind, unsigned char direction, unsigned char packed_light, unsigned char tex_id, short x, short y, short z )
+void r_LocalModelList::AddModel( unsigned short block_id, unsigned char direction, unsigned char packed_light, unsigned char tex_id, short x, short y, short z )
 {
     //return;
-    unsigned char m_id= r_ModelManager::GetModelId( kind, direction );
+    unsigned char m_id= r_ModelManager::GetModelId( block_id, direction );
     this->model_id[ pointer ]= m_id;
     this->model_count[ m_id ]++;
 

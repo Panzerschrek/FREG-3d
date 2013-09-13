@@ -23,7 +23,6 @@
 
 #include <QHash>
 class QByteArray;
-class World;
 
 struct LongLat {
 	long longitude;
@@ -37,7 +36,7 @@ class PreloadThread;
 
 class ShredStorage {
 	public:
-	ShredStorage(const World *, ushort size,
+	ShredStorage(ushort size,
 			long longi_center, long lati_center);
 	~ShredStorage();
 
@@ -53,7 +52,6 @@ class ShredStorage {
 	private:
 	QHash<LongLat, QByteArray *> storage;
 	const ushort size;
-	const World * const world;
 	PreloadThread * preloadThread;
 }; // class ShredStorage
 

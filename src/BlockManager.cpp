@@ -19,9 +19,9 @@
 	*/
 
 #include <QDataStream>
-#include <memory>
 #include "header.h"
 #include "blocks.h"
+#include "Dwarf.h"
 #include "BlockManager.h"
 
 const QString BlockManager::kinds[LAST_KIND]={
@@ -56,10 +56,10 @@ const QString BlockManager::subs[LAST_SUB]={
 	"nullstone",
 	"sky",
 	"star",
-	"sun or moon",
+	"sun_or_moon",
 	"soil",
-	"meat of intellectual",
-	"animal meat",
+	"meat_of_intellectual",
+	"animal_meat",
 	"glass",
 	"wood",
 	"different",
@@ -87,19 +87,18 @@ BlockManager::~BlockManager() {
 	}
 }
 
-Block * BlockManager::NormalBlock(const int sub) {
-	return normals[sub];
-}
+Block * BlockManager::NormalBlock(const int sub) const { return normals[sub]; }
 
-Block * BlockManager::NewBlock(const int kind, int sub) {
+Block * BlockManager::NewBlock(const int kind, int sub) const {
 	if ( sub >= LAST_SUB  ) {
-		fprintf(stderr,
-			"BlockManager::NewBlock: unknown substance: %d.\n",
+		fprintf(stderr, "BlockManager::NewBlock: substance (?): %d.\n",
 			sub);
-		sub=STONE;
+		sub = STONE;
 	}
 	const quint16 id = MakeId(kind, sub);
 	switch ( kind ) {
+	default: fprintf(stderr, "BlockManager::NewBlock: unlisted kind: %d\n",
+		kind);
 	case BLOCK:  return New<Block >(sub, id);
 	case BELL:   return New<Bell  >(sub, id);
 	case GRASS:  return New<Grass >(sub, id);
@@ -113,6 +112,7 @@ Block * BlockManager::NewBlock(const int kind, int sub) {
 	case PILE:   return New<Pile  >(sub, id);
 	case DWARF:  return New<Dwarf >(sub, id);
 	case RABBIT: return New<Rabbit>(sub, id);
+	case LOCKED_DOOR:
 	case DOOR:   return New<Door  >(sub, id);
 	case LIQUID: return New<Liquid>(sub, id);
 	case CLOCK:  return New<Clock >(sub, id);
@@ -120,19 +120,16 @@ Block * BlockManager::NewBlock(const int kind, int sub) {
 	case MAP:    return New<Map   >(sub, id);
 	case CREATOR: return New<Creator>(sub, id);
 	case WORKBENCH: return New<Workbench>(sub, id);
-	default:
-		fprintf(stderr,
-			"BlockManager::NewBlock: unlisted kind: %d\n",
-			kind);
-		return New<Block>(sub, kind);
 	}
-}
+} // Block * BlockManager::NewBlock(int kind, int sub)
 
 Block * BlockManager::BlockFromFile(QDataStream & str,
 		const quint8 kind, const quint8 sub)
-{
+const {
 	const quint16 id = MakeId(kind, sub);
 	switch ( kind ) {
+	default: fprintf(stderr,
+		"BlockManager::BlockFromFile: kind (?): %d\n.", kind);
 	case BLOCK:  return New<Block >(str, sub, id);
 	case BELL:   return New<Bell  >(str, sub, id);
 	case PICK:   return New<Pick  >(str, sub, id);
@@ -154,15 +151,10 @@ Block * BlockManager::BlockFromFile(QDataStream & str,
 	case CLOCK:  return New<Clock >(str, sub, id);
 	case CREATOR: return New<Creator>(str, sub, id);
 	case WORKBENCH: return New<Workbench>(str, sub, id);
-	default:
-		fprintf(stderr,
-			"BlockManager::BlockFromFile: kind (?): %d\n.",
-			kind);
-		return New<Block>(str, sub, id);
 	}
 }
 
-Block * BlockManager::BlockFromFile(QDataStream & str) {
+Block * BlockManager::BlockFromFile(QDataStream & str) const {
 	quint8 kind, sub;
 	return KindSubFromFile(str, kind, sub) ?
 		NormalBlock(sub) : BlockFromFile(str, kind, sub);
@@ -170,19 +162,20 @@ Block * BlockManager::BlockFromFile(QDataStream & str) {
 
 bool BlockManager::KindSubFromFile(QDataStream & str,
 		quint8 & kind, quint8 & sub)
-{
+const {
 	quint8 data;
 	str >> data;
-	sub=(data & 0x7F);
+	sub = (data & 0x7F);
 	if ( data & 0x80 ) { // normal bit
 		return true;
+	} else {
+		str >> kind;
+		return false;
 	}
-	str >> kind;
-	return false;
 }
 
-void BlockManager::DeleteBlock(Block * const block) {
-	if ( block!=NormalBlock(block->Sub()) ) {
+void BlockManager::DeleteBlock(Block * const block) const {
+	if ( block != NormalBlock(block->Sub()) ) {
 		delete block;
 	}
 }
@@ -198,26 +191,25 @@ QString BlockManager::SubToString(const quint8 sub) {
 }
 
 quint8 BlockManager::StringToKind(const QString & str) {
-	int i=0;
+	int i = 0;
 	for ( ; i<LAST_KIND && kinds[i]!=str; ++i);
 	return i;
 }
 
 quint8 BlockManager::StringToSub(const QString & str) {
-	int i=0;
+	int i = 0;
 	for ( ; i<LAST_SUB && subs[i]!=str; ++i);
 	return i;
 }
 
 template <typename Thing>
-Thing * BlockManager::New(const int sub, const quint16 id) {
+Thing * BlockManager::New(const int sub, const quint16 id) const {
 	return new Thing(sub, id);
 }
 
 template <typename Thing>
-Thing * BlockManager::New(QDataStream & str, const int sub,
-		const quint16 id)
-{
+Thing * BlockManager::New(QDataStream & str, const int sub, const quint16 id)
+const {
 	return new Thing(str, sub, id);
 }
 

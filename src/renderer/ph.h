@@ -66,7 +66,7 @@ inline T max( T a, T b )
 
 #define R_MAX_SUB 32
 #define R_MAX_SUB_LOG2 5
-#define R_MAX_KIND 32
+#define R_MAX_KIND 64
 #define R_MAX_KIND_LOG2 5
 
 #endif//PH_H

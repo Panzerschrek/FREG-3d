@@ -139,6 +139,7 @@ public:
     inline void RotateCam( m_Vec3& r);
     inline void ShowMap();
     inline void ShowBlockList( bool show );
+    inline void SetPlayer( Player* p );
 
     inline int ViewportWidth()
     {
@@ -213,7 +214,7 @@ private:
     } r_Config;
 
     const World* world;
-    const Player* player;
+    Player* player;
     r_UniversalThread update_thread;
     unsigned int update_count;
 
@@ -468,5 +469,9 @@ inline void r_Renderer::ShowMap()
 inline void r_Renderer::ShowBlockList( bool s )
 {
     show_block_list= s;
+}
+inline void r_Renderer::SetPlayer( Player* p )
+{
+    player= p;
 }
 #endif//RENDERER_H

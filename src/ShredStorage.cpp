@@ -34,17 +34,15 @@ LongLat::LongLat(const long longi, const long lati) :
 		latitude(lati)
 {}
 
-uint qHash(const LongLat coords) {
+uint qHash(const LongLat & coords) {
 	return ((coords.longitude & 0xffff) << 16) +
 	        (coords.latitude  & 0xffff);
 }
 
-ShredStorage::ShredStorage(const World * const world_,
-		const ushort size_,
+ShredStorage::ShredStorage(const ushort size_,
 		const long longi_center, const long lati_center)
 	:
 		size(size_),
-		world(world_),
 		preloadThread(0)
 {
 	storage.reserve(size*size);

@@ -43,7 +43,6 @@ class DeferredAction {
 	Block * material;
 	ushort srcSlot, destSlot;
 	ushort num;
-	World * const world;
 
 	void GhostMove() const;
 	void Move() const;
@@ -51,8 +50,6 @@ class DeferredAction {
 	void Build();
 	void Damage() const;
 	void Throw() const;
-
-	void UnsetDeferredAction();
 
 	public:
 	void SetGhostMove(ushort dir=HERE);
@@ -69,8 +66,7 @@ class DeferredAction {
 	int  GetActionType() const;
 	void MakeAction();
 
-	DeferredAction(Active * attached, World *);
-	~DeferredAction();
+	DeferredAction(Active * attached);
 }; //class DeferredAction
 
 #endif

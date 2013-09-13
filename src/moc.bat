@@ -6,4 +6,7 @@
 "C:\Qt\bin\moc.exe"  world.h -o "moc/moc_world.cpp"
 "C:\Qt\bin\moc.exe"  thread.h -o "moc/moc_thread.cpp"
 "C:\Qt\bin\moc.exe"  ShredStorage.h -o "moc/moc_shred_storage.cpp"
+"C:\Qt\bin\moc.exe"  Active.h -o "moc/moc_active.cpp"
+"C:\Qt\bin\moc.exe"  Dwarf.h -o "moc/moc_dwarf.cpp"
+"C:\Qt\bin\moc.exe"  Animal.h -o "moc/moc_animal.cpp"
 pause

@@ -1,7 +1,7 @@
 /****************************************************************************
 ** Meta object code from reading C++ file 'world.h'
 **
-** Created: Thu 15. Aug 17:58:43 2013
+** Created: Wed 11. Sep 12:45:53 2013
 **      by: The Qt Meta Object Compiler version 63 (Qt 4.8.3)
 **
 ** WARNING! All changes made in this file will be lost!
@@ -47,7 +47,7 @@ static const uint qt_meta_data_World[] = {
  // slots: signature, parameters, type, tag, flags
      265,    6,    6,    6, 0x0a,
      276,    6,    6,    6, 0x0a,
-     294,    6,    6,    6, 0x0a,
+     299,  289,    6,    6, 0x0a,
 
        0        // eod
 };
@@ -60,8 +60,8 @@ static const char qt_meta_stringdata_World[] = {
     "Moved(int)\0ReConnect()\0UpdatesEnded()\0"
     "NeedPlayer(ushort,ushort,ushort)\0"
     "StartReloadAll()\0FinishReloadAll()\0"
-    "ExitReceived()\0CleanAll()\0ReloadShreds(int)\0"
-    "PhysEvents()\0"
+    "ExitReceived()\0CleanAll()\0PhysEvents()\0"
+    "direction\0SetReloadShreds(int)\0"
 };
 
 void World::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
@@ -83,8 +83,8 @@ void World::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void 
         case 10: _t->FinishReloadAll(); break;
         case 11: _t->ExitReceived(); break;
         case 12: _t->CleanAll(); break;
-        case 13: _t->ReloadShreds((*reinterpret_cast< int(*)>(_a[1]))); break;
-        case 14: _t->PhysEvents(); break;
+        case 13: _t->PhysEvents(); break;
+        case 14: _t->SetReloadShreds((*reinterpret_cast< int(*)>(_a[1]))); break;
         default: ;
         }
     }

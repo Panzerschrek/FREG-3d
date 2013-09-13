@@ -178,6 +178,16 @@ void Screen::PlayerMoved( long x, long y, ushort z )
     player_global_pos.z= float(z) + 0.5f/*- cos( cam_ang.x + m_Math::FM_PI2 ) + 1.0f*/;
 
 }
+void Screen::PlayerDestroyed()
+{
+    player_invalid = true;
+    renderer->SetPlayer( NULL );
+}
+void Screen::UpdatePlayer()
+{
+    player_invalid= false;
+    renderer->SetPlayer( player );
+}
 
 Screen::Screen(
     World * const wor,
@@ -200,7 +210,8 @@ Screen::Screen(
     using_block_z(-42),
     using_block_y(0),
     using_block_x(0),
-    block_list_opened(false)
+    block_list_opened(false),
+    player_invalid(false)
 {
     renderer= new r_Renderer( wor,pl, screen_width, screen_height );
     QGLFormat format;
@@ -506,11 +517,11 @@ void Screen::BlockMenuFunc(QMouseEvent* e)
         ----- -----
         ----- -----
         */
-         QPoint cur_local_pos= gl_widget->mapFromGlobal( cursor.pos() );
+    QPoint cur_local_pos= gl_widget->mapFromGlobal( cursor.pos() );
     int discret_cursor_pos_x, discret_cursor_pos_y;
     discret_cursor_pos_x= (cur_local_pos.x() - ( screen_width - DEFAULT_FONT_WIDTH * 42 ) )/ ( DEFAULT_FONT_WIDTH * 21 );
-    discret_cursor_pos_y= cur_local_pos.y() / DEFAULT_FONT_HEIGHT - 1;
-   // printf( "cur: %d %d\n", discret_cursor_pos_x, discret_cursor_pos_y );
+    discret_cursor_pos_y= cur_local_pos.y() / DEFAULT_FONT_HEIGHT - 2;
+    // printf( "cur: %d %d\n", discret_cursor_pos_x, discret_cursor_pos_y );
 
     if( discret_cursor_pos_x >= 0 && discret_cursor_pos_x <= 1 )
         if( discret_cursor_pos_y >= 0 && discret_cursor_pos_y < block_list_size/2 )
@@ -519,7 +530,7 @@ void Screen::BlockMenuFunc(QMouseEvent* e)
             int i= discret_cursor_pos_y  + discret_cursor_pos_x * block_list_size/2;
             sprintf( str, "give %d %d",
                      block_list[i][0], block_list[i][1] );
-             QString qstr(str);
+            QString qstr(str);
             player->ProcessCommand(qstr);
         }
 
@@ -533,24 +544,27 @@ void Screen::mousePressEvent(QMouseEvent * e)
         BlockMenuFunc(e);
         return;
     }
-    else if ( player->UsingSelfType() == USAGE_TYPE_OPEN )//inventory mode
-    {
-        InventoryFunc(e);
-        return;
-    }
+    else if ( ! player_invalid  )
+        if ( player->UsingSelfType() == USAGE_TYPE_OPEN )//inventory mode
+        {
+            InventoryFunc(e);
+            return;
+        }
     if( e->button() == Qt::RightButton )
     {
         player->Build( build_x, build_y, build_z, 1 + active_hand );
     }
     else if( e->button() == Qt::LeftButton )
     {
-        if( !( build_x == player->X() && build_y == player->Y() && build_z == player->Z() ) )
-            player->Damage( build_x, build_y, build_z );
+        if( player != NULL )
+            if( !( build_x == player->X() && build_y == player->Y() && build_z == player->Z() ) )
+                player->Damage( build_x, build_y, build_z );
     }
     //w->Damage( build_x, build_y, build_z, 10000, DIG );
     else if( e->button() == Qt::MiddleButton )
     {
-        player->SetActiveHand( active_hand );
+        if( ! player_invalid )
+            player->SetActiveHand( active_hand );
         active_hand= ( active_hand + 1 ) & 1;
     }
 }
@@ -563,7 +577,7 @@ void Screen::keyPressEvent( QKeyEvent* e )
     if( key == Qt::Key_Shift )
         shift_pressed= true;
 
-    if( console_opened )
+    if( console_opened && ! player_invalid )
     {
         if( key == Qt::Key_QuoteLeft )
         {
@@ -654,14 +668,6 @@ void Screen::keyPressEvent( QKeyEvent* e )
         CleanAll();
         break;
 
-    case Qt::Key_I:
-        player->Backpack();
-        if( player->UsingSelfType() == USAGE_TYPE_OPEN )
-            use_mouse= false;
-        else
-            use_mouse= true;
-        break;
-
     case ( ( Qt::Key_F12 & 0xff ) | ( Qt::Key_F12 >> 16 ) ):
         need_save_screenshot= true;
         break;
@@ -677,27 +683,32 @@ void Screen::keyPressEvent( QKeyEvent* e )
 
 
     case Qt::Key_E:
-        if( using_block_z == -42/*magic value - no block*/ )
+        if( ! player_invalid )
         {
-            GetBuildCoord();
-            using_block_x= build_x;
-            using_block_y= build_y;
-            using_block_z= build_z;
-            using_block_pos= m_Vec3( float(build_x),
-                                     float(build_y),
-                                     float(build_z) );
-            if( w->GetBlock( using_block_x, using_block_y, using_block_z )
-                    ->HasInventory() && player->UsingSelfType() != USAGE_TYPE_OPEN )
-                player->Backpack();
+            player->Backpack();
+            if( player->UsingSelfType() == USAGE_TYPE_OPEN )
+            {
+                use_mouse= false;
+                GetBuildCoord();
+                using_block_x= build_x;
+                using_block_y= build_y;
+                using_block_z= build_z;
+                using_block_pos= m_Vec3( float(build_x),
+                                         float(build_y),
+                                         float(build_z) );
+            }
+            else
+            {
+                use_mouse= true;
+                using_block_pos.z= float( using_block_z= -42 );
+            }
         }
-        else
-            using_block_pos.z= float( using_block_z= -42 );
-
         break;
 
     case Qt::Key_Slash:
         GetBuildCoord();
-        player->Examine( build_x, build_y, build_z );
+        if( player != NULL )
+            player->Examine( build_x, build_y, build_z );
         break;
 
 
@@ -759,7 +770,7 @@ void Screen::InputTick()
             cam_pos.y-= dt * 0.025 * m_Math::Cos( cam_ang.z );
             cam_pos.x+= dt * 0.025 * m_Math::Sin( cam_ang.z );
         }
-        else if( last_time + dt_i - last_move_event_time > 1000 / w->TimeStepsInSec() )
+        else if( ! player_invalid && last_time + dt_i - last_move_event_time > 1000 / w->TimeStepsInSec() )
         {
             if( cam_ang.z >	m_Math::FM_PI4 && cam_ang.z <= 3.0f * m_Math::FM_PI4 )
             {
@@ -782,7 +793,7 @@ void Screen::InputTick()
             cam_pos.y+= dt * 0.025 * m_Math::Cos( cam_ang.z );
             cam_pos.x-= dt * 0.025 * m_Math::Sin( cam_ang.z );
         }
-        else if( last_time + dt_i - last_move_event_time > 1000 / w->TimeStepsInSec() )
+        else if( ! player_invalid &&  last_time + dt_i - last_move_event_time > 1000 / w->TimeStepsInSec() )
         {
             if( cam_ang.z >	m_Math::FM_PI4 && cam_ang.z <= 3.0f * m_Math::FM_PI4 )
                 player->Move( WEST );
@@ -805,7 +816,7 @@ void Screen::InputTick()
             cam_pos.x+= dt * 0.025 * m_Math::Sin( cam_ang.z - m_Math::FM_PI2);
 
         }
-        else if( last_time + dt_i - last_move_event_time > 1000 / w->TimeStepsInSec() )
+        else if( ! player_invalid &&  last_time + dt_i - last_move_event_time > 1000 / w->TimeStepsInSec() )
         {
             if( cam_ang.z >	m_Math::FM_PI4 && cam_ang.z <= 3.0f * m_Math::FM_PI4 )
                 player->Move( NORTH );
@@ -826,7 +837,7 @@ void Screen::InputTick()
             cam_pos.y-= dt * 0.025 * m_Math::Cos( cam_ang.z + m_Math::FM_PI2);
             cam_pos.x+= dt * 0.025 * m_Math::Sin( cam_ang.z + m_Math::FM_PI2);
         }
-        else if( last_time + dt_i - last_move_event_time > 1000 / w->TimeStepsInSec() )
+        else if( ! player_invalid &&  last_time + dt_i - last_move_event_time > 1000 / w->TimeStepsInSec() )
         {
             if( cam_ang.z >	m_Math::FM_PI4 && cam_ang.z <= 3.0f * m_Math::FM_PI4 )
                 player->Move( SOUTH );
@@ -868,7 +879,7 @@ void Screen::InputTick()
     {
         if( free_look )
             cam_pos.z+= dt * 0.025;
-        else if( last_time + dt_i - last_move_event_time > 1000 / w->TimeStepsInSec() )
+        else if( ! player_invalid &&  last_time + dt_i - last_move_event_time > 1000 / w->TimeStepsInSec() )
         {
             if( cam_ang.z >	m_Math::FM_PI4 && cam_ang.z <= 3.0f * m_Math::FM_PI4 )
                 player->SetDir( EAST );
@@ -888,7 +899,7 @@ void Screen::InputTick()
     {
         if( free_look )
             cam_pos.z-= dt * 0.025;
-        else if( last_time + dt_i - last_move_event_time > 1000 / w->TimeStepsInSec() )
+        else if( player != NULL &&  last_time + dt_i - last_move_event_time > 1000 / w->TimeStepsInSec() )
         {
             player->SetDir( DOWN );
             player->Move( DOWN );
@@ -896,7 +907,7 @@ void Screen::InputTick()
     }
     renderer->SetCamAngle( cam_ang );
 
-    if( ! free_look )
+    if( ! player_invalid && !free_look  )
     {
         /* m_Vec3 new_cam_pos;
          new_cam_pos.x= float( player->X() + (w->Latitude() - w->NumShreds()/2 ) * 16  ) -0.5f;
@@ -912,10 +923,13 @@ void Screen::InputTick()
         if( keys[ FREG_KEY_CROUCH ] )
             cam_pos.z= min( float( player->Z() ) - 0.5f, cam_pos.z );
     }
-    if( w->GetBlock( player->X(), player->Y(), player->Z()+  1 )->Sub() == WATER )
-        renderer->SetUnderwaterMode( true );
-    else
-        renderer->SetUnderwaterMode( false );
+    if( ! player_invalid )
+    {
+        if( w->GetBlock( player->X(), player->Y(), player->Z()+  1 )->Sub() == WATER )
+            renderer->SetUnderwaterMode( true );
+    }
+        else
+            renderer->SetUnderwaterMode( false );
 
     renderer->SetCamPosition( cam_pos );
     GetBuildCoord();

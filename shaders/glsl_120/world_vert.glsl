@@ -26,7 +26,8 @@ void main()
 	int i_normal= int( normal + 0.00001 );
 	f_tex_coord= tex_coord.xy * 0.125 * ( 1.0/16.0 );//16x16 textures in atlas
 	f_tex_coord_shift.x= mod( tex_coord.z, 16.0 ) * ( 1.0/16.0 );
-	f_tex_coord_shift.y= float( int( tex_coord.z * ( 1.0/16.0 ) ) ) * ( 1.0/16.0 ); 
+	//f_tex_coord_shift.y= float( int( tex_coord.z * ( 1.0/16.0 ) ) ) * ( 1.0/16.0 );
+	f_tex_coord_shift.y= tex_coord.z * ( 1.0/256.0 ) -  f_tex_coord_shift.x * ( 1.0/16.0 );
     	
 	f_light= max( sky_ambient_light * light.x + fire_ambient_light * light.y, 0.05 );
 	f_light*= block_side_light_k[ i_normal ];

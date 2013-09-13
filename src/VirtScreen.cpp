@@ -81,6 +81,9 @@ VirtScreen::VirtScreen(World * const world_, Player * const player_) :
 	connect(w, SIGNAL(UpdatesEnded()),
 		this, SLOT(UpdatesEnd()),
 		Qt::DirectConnection);
+
+    connect( player, SIGNAL( Destroyed() ),
+            this, SLOT( PlayerDestroyed() ), Qt::DirectConnection );
 }
 
 void VirtScreen::CleanAll() {}

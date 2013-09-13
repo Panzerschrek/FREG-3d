@@ -41,13 +41,6 @@ public:
 enum:
     unsigned char
     {
-        PLATE= 0,
-        DOOR,
-        RABBIT,
-        DWARF,
-        PICK,
-        PILE,
-        CLOCK,
         MODEL_COUNT= 40
     };
 
@@ -64,7 +57,7 @@ enum:
 
     static unsigned char InitModelTable();
 private:
-    static unsigned char GetModelId( unsigned char kind, unsigned char direction );
+    static unsigned char GetModelId( unsigned short block_id, unsigned char direction );
     static unsigned char model_table[];
 
 
@@ -104,7 +97,8 @@ private:
 class r_LocalModelList
 {
 public:
-    void AddModel( unsigned char kind, unsigned char direction, unsigned char packed_light, unsigned char tex_id, short x, short y, short z );
+   // void AddModel( unsigned char kind, unsigned char direction, unsigned char packed_light, unsigned char tex_id, short x, short y, short z );
+    void AddModel( unsigned short block_id, unsigned char direction, unsigned char packed_light, unsigned char tex_id, short x, short y, short z );
     void Clear();
     void AllocateMemory();
     void SetModelCount( unsigned int n )

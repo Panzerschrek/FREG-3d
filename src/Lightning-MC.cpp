@@ -29,11 +29,12 @@
 
 #include "world.h"
 #include "Shred.h"
+#include "Active.h"
 
 const uchar FIRE_LIGHT_FACTOR=4;
 
 
-const uchar MAX_LIGHT_RADIUS=9;
+//const uchar MAX_LIGHT_RADIUS=9;
 
 const uchar MAX_SUN_LIGHT_LEVEL= 9;
 const uchar MAX_FIRE_LIGHT_LEVEL= 15;

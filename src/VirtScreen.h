@@ -40,7 +40,7 @@ class VirtScreen : public QObject {
 	*/
 
 	Q_OBJECT
-	
+
 	protected:
 	///world to print
 	World * const w;
@@ -95,7 +95,7 @@ class VirtScreen : public QObject {
 	 * It is connected to world in constructor.
 	 */
 	virtual void UpdatePlayer()=0;
-	
+
 	///Called when area around xyz with range needs to be updated.
 	/**
 	 * When implemented, this should work fast.
@@ -119,6 +119,8 @@ class VirtScreen : public QObject {
 	 * ( Can be used in screen optimization. )
 	 */
 	virtual void UpdatesEnd();
+
+	virtual void PlayerDestroyed()= 0;
 
 	void DeathScreen();
 

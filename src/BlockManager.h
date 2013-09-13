@@ -37,8 +37,7 @@ class QDataStream;
  * Block * NormalBlock(int sub).
  * Normal blocks are not needed to be deleted.
  * Use Block * NewBlock(int kind, int sub) to receive a pointer to
- * block that will be changed (damaged, inscribed, etc).
- */
+ * block that will be changed (damaged, inscribed, etc). */
 
 class BlockManager {
 	public:
@@ -46,16 +45,16 @@ class BlockManager {
 	~BlockManager();
 
 	/// Use this to receive a pointer to normal block.
-	Block * NormalBlock(int sub);
+	Block * NormalBlock(int sub) const;
 	/// Use this to receive a pointer to new not-normal block.
-	Block * NewBlock(int kind, int sub=STONE);
+	Block * NewBlock(int kind, int sub) const;
 	/// Use this to load block from file.
-	Block * BlockFromFile(QDataStream &, quint8 kind, quint8 sub);
-	Block * BlockFromFile(QDataStream &);
+	Block * BlockFromFile(QDataStream &, quint8 kind, quint8 sub) const;
+	Block * BlockFromFile(QDataStream &) const;
 	/// Returns true if block is normal.
-	bool KindSubFromFile(QDataStream &, quint8 & kind, quint8 & sub);
+	bool KindSubFromFile(QDataStream &, quint8 & kind, quint8 & sub) const;
 	/// Use this to safely delete block.
-	void DeleteBlock(Block * block);
+	void DeleteBlock(Block * block) const;
 
 	static QString KindToString(quint8 kind);
 	static QString SubToString(quint8 sub);
@@ -69,9 +68,9 @@ class BlockManager {
 	static const QString subs[LAST_SUB];
 
 	template <typename Thing>
-	Thing * New(int sub, quint16 id);
+	Thing * New(int sub, quint16 id) const;
 	template <typename Thing>
-	Thing * New(QDataStream & str, int sub, quint16 id);
+	Thing * New(QDataStream & str, int sub, quint16 id) const;
 }; // class BlockManager
 
 extern BlockManager block_manager;

@@ -113,6 +113,7 @@ private slots:
     void Print();
 
 public slots:
+    void PlayerDestroyed();
 	void PlayerMoved( long x, long y, ushort z );
     void Notify(const QString&) const;
     void CleanAll();
@@ -126,7 +127,7 @@ public slots:
     {
         renderer->MoveMap(dir);
     }
-    void UpdatePlayer(){}
+    void UpdatePlayer();
     void UpdateAround() {}
     void UpdateAround(
         const ushort,
@@ -191,6 +192,7 @@ private:
     short build_x, build_y, build_z;
     short using_block_x, using_block_y, using_block_z;
     bool free_look;
+    bool player_invalid;
     float cam_lag;
 
 

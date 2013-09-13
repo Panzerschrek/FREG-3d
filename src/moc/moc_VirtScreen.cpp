@@ -1,7 +1,7 @@
 /****************************************************************************
 ** Meta object code from reading C++ file 'VirtScreen.h'
 **
-** Created: Thu 15. Aug 17:58:43 2013
+** Created: Wed 11. Sep 12:45:52 2013
 **      by: The Qt Meta Object Compiler version 63 (Qt 4.8.3)
 **
 ** WARNING! All changes made in this file will be lost!
@@ -23,7 +23,7 @@ static const uint qt_meta_data_VirtScreen[] = {
        6,       // revision
        0,       // classname
        0,    0, // classinfo
-      13,   14, // methods
+      14,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -46,6 +46,7 @@ static const uint qt_meta_data_VirtScreen[] = {
      217,   11,   11,   11, 0x0a,
      232,   11,   11,   11, 0x0a,
      245,   11,   11,   11, 0x0a,
+     263,   11,   11,   11, 0x0a,
 
        0        // eod
 };
@@ -57,7 +58,8 @@ static const char qt_meta_stringdata_VirtScreen[] = {
     "Update(ushort,ushort,ushort)\0UpdateAll()\0"
     "Move(int)\0UpdatePlayer()\0x,y,z,range\0"
     "UpdateAround(ushort,ushort,ushort,ushort)\0"
-    "ConnectWorld()\0UpdatesEnd()\0DeathScreen()\0"
+    "ConnectWorld()\0UpdatesEnd()\0"
+    "PlayerDestroyed()\0DeathScreen()\0"
 };
 
 void VirtScreen::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
@@ -79,7 +81,8 @@ void VirtScreen::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         case 9: _t->UpdateAround((*reinterpret_cast< ushort(*)>(_a[1])),(*reinterpret_cast< ushort(*)>(_a[2])),(*reinterpret_cast< ushort(*)>(_a[3])),(*reinterpret_cast< ushort(*)>(_a[4]))); break;
         case 10: _t->ConnectWorld(); break;
         case 11: _t->UpdatesEnd(); break;
-        case 12: _t->DeathScreen(); break;
+        case 12: _t->PlayerDestroyed(); break;
+        case 13: _t->DeathScreen(); break;
         default: ;
         }
     }
@@ -117,9 +120,9 @@ int VirtScreen::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 13)
+        if (_id < 14)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 13;
+        _id -= 14;
     }
     return _id;
 }
