@@ -23,6 +23,7 @@
 
 #include <QObject>
 #include "Block.h"
+#include <QVector>
 
 enum ACTIVE_FREQUENCY {
 	NEVER,
@@ -34,6 +35,8 @@ enum ACTIVE_FREQUENCY {
 class Shred;
 class World;
 class DeferredAction;
+
+
 
 class Active : public QObject, public Block {
 	Q_OBJECT
@@ -104,6 +107,7 @@ class Active : public QObject, public Block {
 	DeferredAction * deferredAction;
 	/// Coordinates in loaded world zone.
 	ushort x_self, y_self, z_self;
+
 }; // class Active
 
 #endif

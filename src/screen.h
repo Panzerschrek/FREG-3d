@@ -85,6 +85,7 @@ protected:
     void focusInEvent(QFocusEvent *);
     void keyReleaseEvent(QKeyEvent* e);
     void closeEvent(QCloseEvent* e);
+    void wheelEvent(QWheelEvent *);
 
 public slots:
     void setXRotation(int) {}
@@ -152,6 +153,7 @@ public:
     Screen(World * const, Player * const);
     void mousePressEvent(QMouseEvent * e);
     void mouseMoveEvent(QMouseEvent * e);
+    void wheelEvent(QWheelEvent *);
     void keyPressEvent( QKeyEvent* e );
     void keyReleaseEvent( QKeyEvent* e );
     void closeEvent(QCloseEvent* e);

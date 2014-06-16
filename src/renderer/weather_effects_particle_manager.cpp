@@ -43,32 +43,24 @@ r_WeatherEffectsParticleManager::r_WeatherEffectsParticleManager( unsigned int p
 
 void r_WeatherEffectsParticleManager::Initialize()
 {
-    if( use_geometry_shader || OGL21_BOOL )
+    if( use_geometry_shader )
     {
-		#ifdef OGL21
-		if( rain_shader.Load( "shaders/glsl_120/rain_frag.glsl", "shaders/glsl_120/rain_vert.glsl",
-                              NULL  ) )
-            printf( "error, rain shader not found\n" );
-		#else
         if( rain_shader.Load( "shaders/rain/rain_frag.glsl", "shaders/rain/rain_g_vert.glsl",
                               "shaders/rain/rain_g_geom.glsl") )
             printf( "error, rain shader not found\n" );
-		#endif
 
         rain_shader.SetAttribLocation( "coord", 0 );
         rain_shader.MoveOnGPU();
 
-        rain_shader.FindUniform( "time" );
+        /*rain_shader.FindUniform( "time" );
         rain_shader.FindUniform( "rain_velocity" );
         rain_shader.FindUniform( "particle_zone_size" );
         rain_shader.FindUniform( "particle_zone_coord" );
         rain_shader.FindUniform( "particle_size" );
         rain_shader.FindUniform( "proj_mat" );
-
-        #ifndef OLG21
         rain_shader.FindUniform( "shadow_map" );
-        rain_shader.FindUniform( "shadow_mat" );
-        #endif
+        rain_shader.FindUniform( "shadow_mat" );*/
+
     }
     else
     {
@@ -88,7 +80,7 @@ void r_WeatherEffectsParticleManager::Initialize()
         rain_shader.SetAttribLocation( "coord", 0 );
         rain_shader.MoveOnGPU();
 
-        rain_shader.FindUniform( "time" );
+        /*rain_shader.FindUniform( "time" );
         rain_shader.FindUniform( "rain_velocity" );
         rain_shader.FindUniform( "particle_zone_size" );
         rain_shader.FindUniform( "particle_zone_coord" );
@@ -96,7 +88,7 @@ void r_WeatherEffectsParticleManager::Initialize()
         rain_shader.FindUniform( "particle_size" );
         rain_shader.FindUniform( "proj_mat" );
         rain_shader.FindUniform( "shadow_map" );
-        rain_shader.FindUniform( "shadow_mat" );
+        rain_shader.FindUniform( "shadow_mat" );*/
     }
     rain_texture.Load( "textures/rain.tga" );
     snow_texture.Load( "textures/snowflake.tga" );
@@ -116,6 +108,8 @@ void r_WeatherEffectsParticleManager::InitVertexBuffer()
 }
 void r_WeatherEffectsParticleManager::ShowWeatherParticles( r_WeatherEffects effect )
 {
+	glDepthMask( GL_FALSE );
+
     if( effect == RAIN )
         rain_texture.BindTexture( 0 );
     else if ( effect == SNOW )
@@ -161,6 +155,8 @@ void r_WeatherEffectsParticleManager::ShowWeatherParticles( r_WeatherEffects eff
 
         glDrawElementsInstanced( GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, NULL, particle_num );
     }
+
+    glDepthMask( GL_TRUE );
 }
 #ifdef OGL21_BOOL
 #undef OGL21_BOOL

@@ -63,7 +63,7 @@ void main()
     //normal.z *= step( 0.5, ami_texdata.a  ) * 2.0 - 1.0;
 
 
-    float light= nl_texdata.b * sky_ambient_light + nl_texdata.a * fire_ambient_light;// sun and fire ambient light
+    float light= nl_texdata.b * sky_ambient_light * 16.0 + nl_texdata.a * fire_ambient_light;// sun and fire ambient light
     light*= 16.0;
     light+= 0.01; // constant ambient light
 
@@ -76,7 +76,7 @@ void main()
  
     //light+= FlashLight(coord, normal );
 
-    #ifdef SMOOUTH_SHADOWS
+    #ifdef SMOOTH_SHADOWS
     vec2 delta;
     delta= vec2( 0.125, 0.125 ) + abs( shadow_coord.xy );
     delta= 0.00439453125 * ( 0.125 + 0.125 * 0.125 ) * ( delta * delta );

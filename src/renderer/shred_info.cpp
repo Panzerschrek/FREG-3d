@@ -416,10 +416,20 @@ shred_vertices[3].normal_id=\
         shred_vertices[1].normal_id=\
 			shred_vertices[0].normal_id= normal_id;\
 \
+if( flat_lighting )\
+{\
 shred_vertices[3].light[0]=\
     shred_vertices[2].light[0]=\
         shred_vertices[1].light[0]=\
-            shred_vertices[0].light[0]= light & 15;\
+            shred_vertices[0].light[0]= light << 4;\
+}\
+else\
+{\
+	shred_vertices[v13[1]].light[0]= world->SunLightSmooth( x + relative_X, y + relative_Y, z );\
+	shred_vertices[2].light[0]= world->SunLightSmooth( x + relative_X, y + relative_Y-1, z );\
+	shred_vertices[v13[0]].light[0]= world->SunLightSmooth( x + relative_X, y + relative_Y-1, z-1 );\
+	shred_vertices[0].light[0]= world->SunLightSmooth( x + relative_X, y + relative_Y, z-1 );\
+}\
 shred_vertices[3].light[1]=\
     shred_vertices[2].light[1]=\
         shred_vertices[1].light[1]=\
@@ -482,10 +492,20 @@ shred_vertices[3].normal_id=\
         shred_vertices[1].normal_id=\
             shred_vertices[0].normal_id= normal_id;\
 \
+if( flat_lighting )\
+{\
 shred_vertices[3].light[0]=\
     shred_vertices[2].light[0]=\
         shred_vertices[1].light[0]=\
-            shred_vertices[0].light[0]= light & 15;\
+            shred_vertices[0].light[0]= light << 4;\
+}\
+else\
+{\
+	shred_vertices[0].light[0]= world->SunLightSmooth( x + relative_X, y + relative_Y, z );\
+	shred_vertices[v13[0]].light[0]= world->SunLightSmooth( x + relative_X-1, y + relative_Y, z );\
+	shred_vertices[2].light[0]= world->SunLightSmooth( x + relative_X-1, y + relative_Y, z -1);\
+	shred_vertices[v13[1]].light[0]= world->SunLightSmooth( x + relative_X, y + relative_Y, z -1 );\
+}\
 shred_vertices[3].light[1]=\
     shred_vertices[2].light[1]=\
         shred_vertices[1].light[1]=\
@@ -546,10 +566,20 @@ shred_vertices[3].normal_id=\
         shred_vertices[1].normal_id=\
             shred_vertices[0].normal_id= normal_id;\
 \
+if( flat_lighting )\
+{\
 shred_vertices[3].light[0]=\
     shred_vertices[2].light[0]=\
         shred_vertices[1].light[0]=\
-            shred_vertices[0].light[0]= light & 15;\
+            shred_vertices[0].light[0]= light << 4;\
+}\
+else\
+{\
+shred_vertices[0].light[0]= world->SunLightSmooth( x + relative_X, y+ relative_Y, z );\
+shred_vertices[v13[0] ].light[0]= world->SunLightSmooth( x + relative_X, y-1+ relative_Y, z );\
+shred_vertices[2].light[0]= world->SunLightSmooth( x-1 + relative_X, y-1+ relative_Y, z );\
+shred_vertices[v13[1] ].light[0]= world->SunLightSmooth( x-1 + relative_X, y+ relative_Y, z );\
+}\
 shred_vertices[3].light[1]=\
     shred_vertices[2].light[1]=\
         shred_vertices[1].light[1]=\
@@ -581,6 +611,14 @@ void r_ShredInfo::BuildShred( r_WorldVertex* shred_vertices )
 
     unsigned int v13[2];
     short X= latitude * 16, Y= longitude * 16;
+	short relative_X, relative_Y;
+	const World* world= shred->GetWorld();
+	relative_Y= (shred->Longitude() - world->Longitude() + world->NumShreds()/2 )*16;
+	relative_X= (shred->Latitude() - world->Latitude() + world->NumShreds()/2 )*16;
+
+	bool flat_lighting=  relative_X == 0 || relative_Y == 0 ||
+	relative_X/16 >= ( world->NumShreds()-1)||
+	relative_Y/16 >= ( world->NumShreds()-1) ;
 
     /*Поскольку количество квадов с водой становится известно только на этапе построения меша,
     размещать их приходится от конца буффера с данными вершин, и заполнять в обратном направлении*/

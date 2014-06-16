@@ -23,6 +23,8 @@
 
 #include "Active.h"
 
+const unsigned int MAX_WAY_LEN=10;
+
 class Animal : public Active {
 	Q_OBJECT
 
@@ -47,6 +49,15 @@ class Animal : public Active {
 	public:
 	Animal(int sub, quint16 id);
 	Animal(QDataStream & str, int sub, quint16 id);
+
+	private:
+	short way[MAX_WAY_LEN][3];
+	unsigned int way_len;
+	short target[3];
+	
+	virtual void SelectTarget();
+	void FindWay();
+	void MoveToTarget();
 }; // class Animal
 
 #endif

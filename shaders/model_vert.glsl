@@ -32,7 +32,7 @@ void main( void )
     ivec4 tex_data= texelFetch( model_buffer, gl_InstanceID + texture_buffer_shift );
     p+= vec3( tex_data.xyz );
     f_tex_coord.z = float( tex_data.w & 255 );
-    f_light= sky_ambient_light * float( (tex_data.w >> 8 ) & 15 ) + fire_ambient_light * float( tex_data.w >>12 );
+    f_light= 16.0 * sky_ambient_light * float( (tex_data.w >> 8 ) & 15 ) + fire_ambient_light * float( tex_data.w >>12 );
 
     f_position= ( shadow_mat * vec4( p, 1.0 ) ).xyz;
     //f_position.xy= 1.25 * f_position.xy / ( vec2( 0.25, 0.25 ) + abs( f_position.xy ) );

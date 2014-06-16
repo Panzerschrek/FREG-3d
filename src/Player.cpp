@@ -150,7 +150,7 @@ void Player::Examine(const short i, const short j, const short k) const {
 			arg(block->GetDir()));
 	}
 	if ( AIR==sub || SKY==sub || SUN_MOON==sub ) {
-		return;	
+		return;
 	}
 	QString str;
 	if ( ""!=(str=block->GetNote()) ) {
@@ -361,7 +361,7 @@ void Player::ProcessCommand(QString & command) {
 	comm_stream >> request;
 	if ( "give"==request || "get"==request ) {
 		Inventory * const inv=PlayerInventory();
-		if ( !creativeMode ) {
+		if ( !creativeMode && 0 ) {
 			emit Notify(tr("You are not in Creative Mode."));
 		} else if ( inv ) {
 			int kind, sub, num;

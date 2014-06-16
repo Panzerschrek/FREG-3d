@@ -330,6 +330,7 @@ private:
     r_FrameBuffer scene_hdr_buffer, brightness_info_buffer, scene_hdr_underwater_buffer;
     float scene_brightness;
     r_GLSLProgram postprocess_shader, brightness_shader;
+    r_GLSLProgram mini_scene_buffe_shader;
     r_GLSLProgram underwater_postprocess_shader;
     GLuint scene_depth_buffer;//scene buffer before water drawing
     bool underwater;
@@ -377,7 +378,7 @@ private:
     bool filter_world_texture, filter_shadowmap_texture;
     unsigned int shadowmap_size;
 
-    bool bloom, antialiasing, edge_detect, deferred_shading;
+    bool bloom, antialiasing, edge_detect, deferred_shading, smooth_shadows;
 public:
     const QSettings* Config() const
     {

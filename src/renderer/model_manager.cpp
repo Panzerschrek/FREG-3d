@@ -245,51 +245,23 @@ void r_ModelManager::LoadModelsFiles()
 void r_ModelManager::DrawModels( const r_GLSLProgram* shader )
 {
     // return;
-#ifdef OGL21
-    model_buffer.Bind();
 
-    unsigned int un_id_pos= shader->GetUniformId( "pos" )
-                            , un_id_light= shader->GetUniformId( "light" );
-
-    m_Vec3 pos, light;
-    short* inst_data;
-    for( unsigned int i= 0; i< model_count; i++ )
-    {
-        inst_data= model_instance_data + instance_data_pointer[i] * 4;
-        for( unsigned int j= 0; j< instance_model_count[i]; j++ )
-        {
-            pos.x= float( inst_data[ j * 4     ] );
-            pos.y= float( inst_data[ j * 4 + 1 ] );
-            pos.z= float( inst_data[ j * 4 + 2 ] );
-            light.x= float( ( inst_data[ j * 4 + 3 ] >> 8 ) & 15 );
-            light.y= float( inst_data[ j * 4 + 3 ] >> 12 );
-            light.z= float( inst_data[ j * 4 + 3 ] & 255 );
-            shader->Uniform( un_id_pos, pos );
-            shader->Uniform( un_id_light, light );
-            glDrawElements( GL_TRIANGLES, index_count[i],
-                            GL_UNSIGNED_SHORT, (void*) (index_pointer[i] * sizeof(quint16)) );
-        }
-    }
-
-
-#else
 
     glActiveTexture( GL_TEXTURE0 + 2 );
     glBindTexture( GL_TEXTURE_BUFFER, tex );
     shader->Uniform( "model_buffer", 2 );
 
     model_buffer.Bind();
-    unsigned int un_id= shader->GetUniformId( "texture_buffer_shift" );
+    //unsigned int un_id= shader->GetUniformId( "texture_buffer_shift" );
     for( unsigned int i= 0; i< model_count; i++ )
     {
         if( instance_model_count[i] != 0 )
         {
-            shader->Uniform( (int)un_id, (int)instance_data_pointer[i] );
+            shader->Uniform( "texture_buffer_shift", (int)instance_data_pointer[i] );
             glDrawElementsInstanced( GL_TRIANGLES, index_count[i], GL_UNSIGNED_SHORT,
                                      (void*) (index_pointer[i] * sizeof(quint16)), instance_model_count[i] );
         }
     }
-#endif
 }
 
 void r_ModelManager::InitVertexBuffer()

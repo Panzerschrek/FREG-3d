@@ -22,8 +22,8 @@
 #define MAX_SHADER_SRC_LEN 8192
 #define MAX_UNIFORM_NUMBER 16
 #define MAX_ATTRIB_NUMBER  16
-#define MAX_SHADER_DEFINES 8
-#define MAX_DEFINE_LEN 32
+#define MAX_SHADER_DEFINES 6
+#define MAX_DEFINE_LEN 128
 
 #define MAX_UNIFORM_NAME_LEN	32
 #define MAX_ATTRIB_NAME_LEN 32
@@ -58,21 +58,19 @@ public:
 	int		MoveOnGPU();
 	int		FindAttrib	( const char* name );
 	int     SetAttribLocation( const char* name, unsigned int location );
-	int		FindUniform	( const char* name );
-    int		GetUniformId	( const char* name );
+    //int		GetUniformId	( const char* name );
 
-	int		Uniform( const char* name, m_Vec3& v) const;
+	int		Uniform( const char* name, const m_Vec3& v) const;
 	int		Uniform( const char* name, int i ) const;
-	int		Uniform( const char* name, m_Mat4& m ) const;
-	int		Uniform( const char* name, m_Mat3& m ) const;
+	int		Uniform( const char* name, const m_Mat4& m ) const;
+	int		Uniform( const char* name, const m_Mat3& m ) const;
 	int		Uniform( const char* name, float f ) const;
 
-	int		Uniform( int id, m_Vec3& v) const;
+	/*int		Uniform( int id, const m_Vec3& v) const;
 	int		Uniform( int id, int i ) const;
-	int		Uniform( int id, m_Mat4& m ) const;
-	int		Uniform( int id, m_Mat3& m ) const;
-
-    int		Uniform( int id, float f ) const;
+	int		Uniform( int id, const m_Mat4& m ) const;
+	int		Uniform( int id, const m_Mat3& m ) const;
+    int		Uniform( int id, float f ) const;*/
 
     int Define( const char* def );
     int UnDefine( const char* def );
@@ -80,9 +78,15 @@ public:
 	void	Bind() const;
 	 r_GLSLProgram();
 	~r_GLSLProgram();
+
 private:
+	void 	FindAllUniforms();
+	void 	FindAllUniformsInShader( const char* shader_text );
+	int		FindUniform	( const char* name );
 	int		GetUniform( const char* name ) const;
-	static r_GLSLProgram* current_prog;
+
+
+	static 	r_GLSLProgram* current_prog;
 
 	const static char* attrib_names[ MAX_NUMBER_OF_ATTRIBS ];//имена аттрибутов
 

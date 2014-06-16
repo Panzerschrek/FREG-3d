@@ -29,4 +29,5 @@ void main( void )
     f_normal= normals[ normal ];
     f_light= light * block_side_light_k[ normal ];
     gl_Position= proj_mat * vec4( coord, 1.0f );
+
 }   

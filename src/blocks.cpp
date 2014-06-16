@@ -27,6 +27,7 @@
 #include "Shred.h"
 #include "CraftManager.h"
 #include "BlockManager.h"
+#include "world.h"
 
 // Block::
 	QString Block::FullName() const {
@@ -434,6 +435,94 @@
 	{
 		str >> breath >> satiation;
 	}
+
+
+
+void Animal::SelectTarget()
+{
+	World* w= GetWorld();
+	target[0]= X() + w->Latitude() * SHRED_WIDTH;
+	target[1]= Y() + w->Longitude() * SHRED_WIDTH;
+	target[2]= Z();
+}
+
+void Animal::FindWay()
+{
+	unsigned char way_field[ MAX_WAY_LEN*2 + 1 ]
+				[ MAX_WAY_LEN*2 + 1 ]
+				[ MAX_WAY_LEN*2 + 1 ];
+
+	memset( way_field, 0, (MAX_WAY_LEN*2 + 1)*(MAX_WAY_LEN*2 + 1)*(MAX_WAY_LEN*2 + 1) );
+
+    World* w= GetWorld();
+	short world_pos[]= { w->Latitude() * SHRED_WIDTH,  w->Longitude() * SHRED_WIDTH };
+
+	short animal_pos[3];
+	animal_pos[0]= X() + world_pos[0];
+	animal_pos[1]= Y() + world_pos[1];
+	animal_pos[2]= Z();
+
+	short way_field_pos[]= { animal_pos[0] - MAX_WAY_LEN, animal_pos[1] - MAX_WAY_LEN, animal_pos[2] - MAX_WAY_LEN };
+
+
+	way_field[ MAX_WAY_LEN ][ MAX_WAY_LEN ][ MAX_WAY_LEN ]= 127;
+
+	short block_stack[ (MAX_WAY_LEN*2 + 1)*(MAX_WAY_LEN*2 + 1)*(MAX_WAY_LEN*2 + 1) ][3];
+	int stack_p= 0;
+	block_stack[0][0]= block_stack[0][1]= block_stack[0][2]= MAX_WAY_LEN;
+
+	short x, y, z;
+    unsigned char current_block_value;
+
+	bool can_move[5];
+	do
+	{
+		x= block_stack[stack_p][0];
+		y= block_stack[stack_p][1];
+		z= block_stack[stack_p][2];
+
+        current_block_value= way_field[x][y][z];
+
+		if( current_block_value < 127 - MAX_WAY_LEN )
+		{
+			stack_p--;
+			continue;
+		}
+
+		can_move[0]= w->Transparent( x +  way_field_pos[0], y+ way_field_pos[1], (z + way_field_pos[2])&0x7F );
+		can_move[1]= w->Transparent( x + 1 + way_field_pos[0], y+ way_field_pos[1], ( z + 1 + way_field_pos[2] )&0x7F );
+		can_move[2]= w->Transparent( x +1 + way_field_pos[0], y+ way_field_pos[1], ( z + way_field_pos[2] )&0x7F );
+		can_move[3]= w->Transparent( x +1 + way_field_pos[0], y+ way_field_pos[1], ( z - 1 + way_field_pos[2] )&0x7F );
+		can_move[4]= w->Transparent( x +1 + way_field_pos[0], y+ way_field_pos[1], ( z - 2 + way_field_pos[2] )&0x7F );
+
+
+        if( can_move[0] && can_move[1] && !can_move[2] )
+        {
+            if(way_field[x+1][y][z+1] == 0)
+                if( current_block_value >= 1 + 127 - MAX_WAY_LEN )
+                    way_field[x+1][y][z+1]= current_block_value-1;
+        }
+        else if( can_move[2] && !can_move[3] )
+        {
+             if(way_field[x+1][y][z] == 0)
+                if( current_block_value >= 1 + 127 - MAX_WAY_LEN )
+                way_field[x+1][y][z]= current_block_value-1;
+        }
+        else if( can_move[2] && can_move[3] && !can_move[4] )
+        {
+            if(way_field[x+1][y][z-1] == 0)
+                if( current_block_value >= 1 + 127 - MAX_WAY_LEN )
+                    way_field[x+1][y][z-1]= current_block_value-1;
+        }
+
+
+	}while( stack_p != 0 );
+
+}
+
+
+
+
 // Inventory::
 	bool   Inventory::Access() const { return true; }
 	ushort Inventory::Start() const { return 0; }

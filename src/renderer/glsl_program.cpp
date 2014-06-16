@@ -80,14 +80,26 @@ int r_GLSLProgram::Define( const char* def )
     if( define_num == MAX_SHADER_DEFINES )
         return 1;
 
-    strcpy( defines[ define_num ], def );
+    sprintf( defines[ define_num ], "#define %s\n", def );
     define_num++;
     return 0;
 }
 
 int r_GLSLProgram::UnDefine( const char* def )
 {
-
+	char str[ MAX_DEFINE_LEN ];
+	sprintf( str, "#define %s\n", def );
+	for( unsigned int i= 0; i< define_num; i++ )
+	{
+		if( !strcmp( str, defines[i] ) )
+		{
+			if( i < define_num - 1 )
+				strcpy( defines[i], defines[ define_num - 1 ] );
+			define_num--;
+			return 0;
+		}
+	}
+	return 1;
 }
 
 int r_GLSLProgram::Load ( const char *frag_file, const char *vert_file, const char *geom_file )
@@ -182,7 +194,7 @@ int r_GLSLProgram::MoveOnGPU()
 
         shader_strings_len[shader_tex_buf_pos ]= strlen (frag_text );
         shader_text_buf[shader_tex_buf_pos ]= frag_text;
-        glShaderSource(frag_handle, shader_tex_buf_pos + 1, (const char**)shader_text_buf, shader_strings_len );
+        glShaderSource(frag_handle, shader_tex_buf_pos + 1, (const char**)shader_text_buf, ( const GLint*) shader_strings_len );
 
         glCompileShader( frag_handle );
         glGetShaderiv( frag_handle, GL_COMPILE_STATUS, &compile_status );
@@ -203,7 +215,7 @@ int r_GLSLProgram::MoveOnGPU()
 
         shader_strings_len[shader_tex_buf_pos]= strlen( vert_text );
         shader_text_buf[shader_tex_buf_pos]= vert_text;
-        glShaderSource(  vert_handle, shader_tex_buf_pos + 1, (const char**)shader_text_buf, shader_strings_len );
+        glShaderSource(  vert_handle, shader_tex_buf_pos + 1, (const char**)shader_text_buf,  ( const GLint*)shader_strings_len );
 
         glCompileShader( vert_handle);
         glGetShaderiv( vert_handle, GL_COMPILE_STATUS, &compile_status );
@@ -223,7 +235,7 @@ int r_GLSLProgram::MoveOnGPU()
 
         shader_strings_len[shader_tex_buf_pos]= strlen( geom_text );
         shader_text_buf[shader_tex_buf_pos]= geom_text;
-        glShaderSource( geom_handle, shader_tex_buf_pos + 1,(const char**) shader_text_buf, shader_strings_len );
+        glShaderSource( geom_handle, shader_tex_buf_pos + 1,(const char**) shader_text_buf,  ( const GLint*) shader_strings_len );
 
         glCompileShader( geom_handle);
         glGetShaderiv( geom_handle, GL_COMPILE_STATUS, &compile_status );
@@ -250,6 +262,8 @@ int r_GLSLProgram::MoveOnGPU()
         printf( "shader link error:\n %s\n", build_log );
         result= 1;
     }
+
+    FindAllUniforms();
 
     return result;
 }
@@ -310,6 +324,56 @@ int	r_GLSLProgram::FindUniform ( const char* name )
     return 0;
 }
 
+
+bool IsCIdentiferCharacter( char c )
+{
+    return  ( c >= 'a' && c <= 'z' ) || ( c >= 'A' && c <= 'Z' ) || ( c >= '0' && c <= '9' ) || c == '_';
+}
+
+void r_GLSLProgram::FindAllUniformsInShader( const char* shader_text )
+{
+    unsigned int pos= 0;
+    const char* uniform_str;
+    char uniform_name[ MAX_UNIFORM_NAME_LEN ];
+    unsigned int i;
+
+    uniform_str= shader_text;
+    while( uniform_str= strstr( uniform_str, "uniform" ) )
+    {
+        uniform_str+= 7;//+=strlen( "uniform" )
+        if( !( *uniform_str == ' ' ||  *uniform_str == '\t' || *uniform_str == '\n' ) )//if identifer with name [uniform][a-zA-Z0-9]*
+        	continue;
+		uniform_str++;
+
+        while( IsCIdentiferCharacter( *uniform_str ) )//skip type of uniform
+			uniform_str++;
+		uniform_str++;
+
+        i= 0;
+        while( IsCIdentiferCharacter( uniform_str[i] )  )
+        {
+            uniform_name[i]= uniform_str[i];
+            i++;
+        }
+        uniform_name[i]= 0;
+        FindUniform( uniform_name );
+    }
+}
+
+void r_GLSLProgram::FindAllUniforms()
+{
+    if( vert_text[0]!= 0  )
+        FindAllUniformsInShader( vert_text );
+
+    if( frag_text[0]!= 0  )
+        FindAllUniformsInShader( frag_text );
+
+    if( geom_text[0]!= 0  )
+        FindAllUniformsInShader( geom_text );
+}
+
+
+
 int	r_GLSLProgram::GetUniform( const char* name ) const
 {
     int i;
@@ -325,7 +389,7 @@ int	r_GLSLProgram::GetUniform( const char* name ) const
 }
 
 
-int	r_GLSLProgram::Uniform( const char* name, m_Vec3& v) const
+int	r_GLSLProgram::Uniform( const char* name, const m_Vec3& v) const
 {
     int u= GetUniform( name );
     if( u == -1 )
@@ -346,7 +410,7 @@ int	r_GLSLProgram::Uniform( const char* name, int i ) const
     return 0;
 }
 
-int	r_GLSLProgram::Uniform( const char* name, m_Mat4& m ) const
+int	r_GLSLProgram::Uniform( const char* name, const m_Mat4& m ) const
 {
     int u= GetUniform( name );
     if( u == -1 )
@@ -357,7 +421,7 @@ int	r_GLSLProgram::Uniform( const char* name, m_Mat4& m ) const
     return 0;
 }
 
-int	r_GLSLProgram::Uniform( const char* name, m_Mat3& m ) const
+int	r_GLSLProgram::Uniform( const char* name, const m_Mat3& m ) const
 {
     int u= GetUniform( name );
     if( u == -1 )
@@ -379,7 +443,7 @@ int	r_GLSLProgram::Uniform( const char* name, float f ) const
     return 0;
 }
 
-int	r_GLSLProgram::Uniform( int id, float f ) const
+/*int	r_GLSLProgram::Uniform( int id, float f ) const
 {
     if( id >= uniform_num )
         return 1;
@@ -426,7 +490,6 @@ int	r_GLSLProgram::Uniform( int id, m_Mat4& m ) const
     if( id >= uniform_num )
         return 1;
 
-    /*GL_FALSE - означает что матрица, используемая мной транспонируется в OpenGL и всё будет збсь*/
     glUniformMatrix4fv( uniforms[id], 1, GL_FALSE, m.value );
     return 0;
 }
@@ -436,10 +499,9 @@ int	r_GLSLProgram::Uniform( int id, m_Mat3& m ) const
     if( id >= uniform_num )
         return 1;
 
-    /*GL_FALSE - означает что матрица, используемая мной транспонируется в OpenGL и всё будет збсь*/
     glUniformMatrix3fv( uniforms[id], 1, GL_FALSE, m.value );
     return 0;
 
 }
-
+*/
 #endif//GLSL_PROGRAM_CPP

@@ -104,7 +104,10 @@ void FREGGLWidget::closeEvent(QCloseEvent* e)
 {
     screen->closeEvent(e);
 }
-
+void FREGGLWidget::wheelEvent(QWheelEvent *e)
+{
+    screen->wheelEvent(e);
+}
 void FREGGLWidget::focusInEvent( QFocusEvent* e )
 {
     screen->focusInEvent( e );
@@ -564,10 +567,17 @@ void Screen::mousePressEvent(QMouseEvent * e)
     else if( e->button() == Qt::MiddleButton )
     {
         if( ! player_invalid )
-            player->SetActiveHand( active_hand );
-        active_hand= ( active_hand + 1 ) & 1;
+            player->Use( 1 + active_hand );
     }
 }
+
+void Screen::wheelEvent(QWheelEvent *e)
+{
+    if( ! player_invalid )
+        player->SetActiveHand( active_hand );
+    active_hand= ( active_hand + 1 ) & 1;
+}
+
 void Screen::mouseMoveEvent(QMouseEvent * e )
 {
 }
@@ -927,9 +937,9 @@ void Screen::InputTick()
     {
         if( w->GetBlock( player->X(), player->Y(), player->Z()+  1 )->Sub() == WATER )
             renderer->SetUnderwaterMode( true );
+		else
+        	renderer->SetUnderwaterMode( false );
     }
-        else
-            renderer->SetUnderwaterMode( false );
 
     renderer->SetCamPosition( cam_pos );
     GetBuildCoord();

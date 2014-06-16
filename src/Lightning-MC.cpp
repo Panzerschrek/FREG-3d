@@ -66,6 +66,105 @@ short World::ClampZ(const short z ) const
     return z;
 }
 
+
+uchar World::SunLightSmooth( ushort x, ushort y, ushort z) const
+{
+	unsigned char light= 0;
+	unsigned short count= 0;
+	if( GetBlock( x, y, z )->Transparent() > 0 )
+	{
+		count++;
+		light+= SunLight( x, y, z );
+	}
+	if( GetBlock( x+1, y, z )->Transparent() > 0 )
+	{
+		count++;
+		light+= SunLight( x+1, y, z );
+	}
+	if( GetBlock( x, y+1, z )->Transparent() > 0 )
+	{
+		count++;
+		light+= SunLight( x, y+1, z );
+	}
+	if( GetBlock( x+1, y+1, z )->Transparent() > 0 )
+	{
+		count++;
+		light+= SunLight( x+1, y+1, z );
+	}
+
+	if( GetBlock( x, y, z+1 )->Transparent() > 0 )
+	{
+		count++;
+		light+= SunLight( x, y, z+1 );
+	}
+	if( GetBlock( x+1, y, z+1 )->Transparent() > 0 )
+	{
+		count++;
+		light+= SunLight( x+1, y, z+1 );
+	}
+	if( GetBlock( x, y+1, z+1 )->Transparent() > 0 )
+	{
+		count++;
+		light+= SunLight( x, y+1, z+1 );
+	}
+	if( GetBlock( x+1, y+1, z+1 )->Transparent() > 0 )
+	{
+		count++;
+		light+= SunLight( x+1, y+1, z+1 );
+	}
+
+	return  (unsigned char)( (((unsigned short)light)*(12+count) ) / count );
+}
+
+uchar World::FireLightSmooth( ushort x, ushort y, ushort z) const
+{
+	unsigned char light= 0;
+	unsigned short count= 0;
+	if( GetBlock( x, y, z )->Transparent() > 0 )
+	{
+		count++;
+		light+= FireLight( x, y, z );
+	}
+	if( GetBlock( x+1, y, z )->Transparent() > 0 )
+	{
+		count++;
+		light+= FireLight( x+1, y, z );
+	}
+	if( GetBlock( x, y+1, z )->Transparent() > 0 )
+	{
+		count++;
+		light+= FireLight( x, y+1, z );
+	}
+	if( GetBlock( x+1, y+1, z )->Transparent() > 0 )
+	{
+		count++;
+		light+= FireLight( x+1, y+1, z );
+	}
+
+	if( GetBlock( x, y, z+1 )->Transparent() > 0 )
+	{
+		count++;
+		light+= FireLight( x, y, z+1 );
+	}
+	if( GetBlock( x+1, y, z+1 )->Transparent() > 0 )
+	{
+		count++;
+		light+= FireLight( x+1, y, z+1 );
+	}
+	if( GetBlock( x, y+1, z+1 )->Transparent() > 0 )
+	{
+		count++;
+		light+= FireLight( x, y+1, z+1 );
+	}
+	if( GetBlock( x+1, y+1, z+1 )->Transparent() > 0 )
+	{
+		count++;
+		light+= FireLight( x+1, y+1, z+1 );
+	}
+
+	return  (unsigned char)( (((unsigned short)light)<<4) / count );
+}
+
 //use Enlightened instead, which is smart wrapper of this.
 uchar World::LightMap(const ushort x, const ushort y, const ushort z)
 const

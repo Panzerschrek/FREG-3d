@@ -5,7 +5,7 @@ uniform vec3 fog_color= vec3( 0.8, 0.8, 1.0 );
 uniform sampler2DShadow shadow_map;
 uniform sampler3D normal_map;
 uniform sampler2D depth_buffer;
-uniform float direct_sun_light= 20.0;
+float direct_sun_light= 20.0;
 uniform vec3 cam_pos;
 uniform float time;
 
@@ -79,5 +79,5 @@ void main( void )
 	//float a2= 1.0 - exp( -depth_delta * inv_max_view_distance );
 
 	vec3 final_color= mix( a2 * water_deep_color * f_light, l * water_color, a );
-	gl_FragColor= vec4( final_color ,  ( 1.0 - a ) * ( 1.0 - a2 ) );
+	color= vec4( final_color ,  ( 1.0 - a ) * ( 1.0 - a2 ) );
 }

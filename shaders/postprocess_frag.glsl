@@ -1,10 +1,13 @@
 //postprocessing Ubershader
+
+#define SOAP
+
 #version 330
 uniform sampler2D scene_buffer;
 uniform sampler2D bloom_buffer;
 uniform sampler2D depth_buffer;
 uniform float adapted_brightness;
-uniform float saturation= 1.0;
+uniform float saturation= 0.9;
 uniform float time;
 uniform vec3 inv_screen_size= vec3( 1.0f/ 1024.0, 1.0f/768.0, 0.0 );
 
@@ -28,7 +31,7 @@ float GetFragLinearDepth( vec2 tc )
 
 vec3 ToneMapping( vec3 c )
 {
-    return vec3( 1.0, 1.0, 1.0 ) - exp( - adapted_brightness * c );
+    return vec3( 1.0, 1.0, 1.0 ) - exp( - adapted_brightness * c);
 }
 
 vec3 InvToneMapping( vec3 c )
@@ -77,7 +80,7 @@ vec3 GetFragColor()
     vec3 c;
     c= texture( scene_buffer, f_tex_coord ).xyz;
 #ifdef BLOOM
-    c= max( texture( bloom_buffer, f_tex_coord ).xyz, c );
+    c= max( texture( bloom_buffer, f_tex_coord ).xyz, c  );
 #endif
     c= ToneMapping(c);
     return c;
@@ -179,6 +182,7 @@ vec3 Soap()//"Ìûכüצמ" like on PS3
 	return ToneMapping( mix( c, underwater_fog_color, min( depth * inv_max_view_distance, 1.0 ) )  );
 }
 
+
 void main()
 {
     vec3 c;
@@ -198,9 +202,6 @@ void main()
 #endif
     float c_gray= dot( c, vec3( 0.299, 0.5876, 0.114 ) );
     c= mix( vec3( c_gray, c_gray, c_gray ), c, saturation );
-    color= vec4( c, 1.0 );
+    color= vec4( c , 1.0 );
 
-   //c_gray= texture( depth_buffer, f_tex_coord ).x;
-
-   //color= vec4( c_gray, c_gray, c_gray, 1.0 );
 }

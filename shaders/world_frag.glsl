@@ -53,7 +53,7 @@ void main( void )
    	float l= f_light + 0.01;
 	vec4 c= texture( tex, f_tex_coord );
 	if( c.a <= 0.5 )discard;
-	
+	//c.xyz= vec3( 1.0, 1.0, 1.0 );
 	l+= SunLight();
 	color= mix( l * c, vec4( fog_color, 1.0 ), 0.0 );
 

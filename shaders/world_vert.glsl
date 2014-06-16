@@ -43,7 +43,7 @@ void main( void )
     fog_k= min( 0.25f * fog_k *  max_view2, 1.0f );
 
     f_light= fire_ambient_light * light.y + sky_ambient_light * light.x;
-    f_light*= block_side_light_k[ normal ];
+    //f_light*= block_side_light_k[ normal ];
     f_normal= normals[ normal ];
 
     f_position= ( shadow_mat * vec4( coord, 1.0 ) ).xyz;
@@ -54,4 +54,5 @@ void main( void )
 
     f_world_position= coord;
     gl_Position= proj_mat * vec4( coord, 1.0f );
+
 }   

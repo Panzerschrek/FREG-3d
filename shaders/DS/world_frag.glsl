@@ -31,5 +31,5 @@ void main( void )
     //stereographic normal convertion
     //normal_light.xy= f_normal.xy/( 1.0 - f_normal.z );
 
-    normal_light.ba= f_light * ( 1.0/16.0 );
+    normal_light.ba= f_light * ( 1.0 / 256.0 );
 }

@@ -85,13 +85,9 @@ void r_Renderer::SetupVertexBuffers()
     t= (int)(((char*)vert.tex_coord) - ((char*)&vert));
     world_buffer.VertexAttribPointer( ATTRIB_TEX_COORD, 3, GL_BYTE, false, t );
     //in ogl 2.1 intexer vertex attribs not supported
-#ifdef OGL21
-    t= (int)(((char*)&vert.normal_id) - ((char*)&vert));
-    world_buffer.VertexAttribPointer( ATTRIB_NORMAL, 1, GL_UNSIGNED_BYTE, false, t );
-#else
     t= (int)(((char*)&vert.normal_id) - ((char*)&vert));
     world_buffer.VertexAttribPointerInt( ATTRIB_NORMAL, 1, GL_UNSIGNED_BYTE, t );
-#endif
+
     t= (int)(((char*)vert.light) - ((char*)&vert));
     world_buffer.VertexAttribPointer( /*ATTRIB_USER0*/3/*light*/ , 2, GL_UNSIGNED_BYTE, false, t );
 
@@ -175,11 +171,8 @@ void r_Renderer::DrawWorld()
     view_matrix= tr * rotZ * rotX *chang* per;
 
 
-#ifdef OGL21
-    texture_manager.TextureAtlas()->BindTexture(0);
-#else
+
     texture_manager.TextureArray()->Bind(0);
-#endif
 
     world_shader.Bind();
     world_shader.Uniform( "proj_mat", view_matrix );
@@ -247,14 +240,10 @@ void r_Renderer::DrawWorld()
                           GL_UNSIGNED_INT, (GLvoid* const*)shreds_to_draw_indeces,
                           shreds_to_draw_count );*/
     world_buffer.Bind();
-#ifdef OGL21
-    glMultiDrawArrays( GL_QUADS, shreds_to_draw_base_vertices,
-                       shreds_to_draw_quad_count, shreds_to_draw_count );
-#else
+
     glMultiDrawElementsBaseVertex( GL_TRIANGLES, shreds_to_draw_quad_count,
                                    GL_UNSIGNED_SHORT, (GLvoid* const*)shreds_to_draw_indeces,
                                    shreds_to_draw_count, shreds_to_draw_base_vertices );
-#endif
     models_shader.Bind();
     models_shader.Uniform( "tex", 0 );
     models_shader.Uniform( "proj_mat", view_matrix );
@@ -321,9 +310,6 @@ void r_Renderer::DrawRain()
     particle_size.y= 1.0f / m_Math::Tan( fov * 0.5f );
     particle_size.x=  particle_size.y * float( viewport_y) / float(viewport_x);
     particle_size*= 0.1f;
-#ifdef OGL21// particle size in pixels
-    particle_size*= m_Vec3( float( viewport_x ), float( viewport_y ), 0.0 );
-#endif
 
     rain.SetSunShadowmap( sun_shadow_map + front_shadowmap, shadow_matrix );
     rain.SetParticleSize( particle_size );
@@ -339,20 +325,14 @@ void r_Renderer::CopyDepthBuffer()
 {
     glBindTexture( GL_TEXTURE_2D, scene_depth_buffer );
 
-#ifdef OGL21
-    if( underwater )
-        glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, viewport_x/2, viewport_y/2 );
-    else
-        glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, viewport_x, viewport_y );
-#else
     glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, viewport_x, viewport_y );
-#endif
+
     r_Texture::ResetBinding();
 }
 
 void r_Renderer::DrawWater()
 {
-
+    glDepthMask( GL_FALSE );
     glBlendFunc( GL_ONE, GL_SRC_ALPHA );
 
     sun_shadow_map[ front_shadowmap ].BindDepthTexture(0);
@@ -407,15 +387,11 @@ void r_Renderer::DrawWater()
 
     world_buffer.Bind();
 
-#ifdef OGL21
-    glMultiDrawArrays( GL_QUADS, water_quads_base_vertices,
-                       water_quads_to_draw_count, water_shreds_to_draw_count );
-#else
     glMultiDrawElementsBaseVertex( GL_TRIANGLES, water_quads_to_draw_count,
                                    GL_UNSIGNED_SHORT, (GLvoid* const*)shreds_to_draw_indeces,
                                    water_shreds_to_draw_count, water_quads_base_vertices );
-#endif
 
+    glDepthMask( GL_TRUE );
 }
 void r_Renderer::DrawHUD()
 {
@@ -911,24 +887,14 @@ void r_Renderer::Draw()
 
     frame_cam_position= cam_position;
 
-#ifdef OGL21
-    glClear( GL_DEPTH_BUFFER_BIT );
-    if( underwater )
-        glViewport( 0, 0, viewport_x/2, viewport_y/2 );
-#endif
 
-#ifndef OGL21
     glDisable( GL_CULL_FACE );
     RenderShadows();
     glEnable( GL_CULL_FACE );
-#else
-    RenderShadows();//hack for computing of light vector
-#endif
 
     CalculateLightPower();
     BuildShredList();
 
-#ifndef OGL21
     if( deferred_shading )
     {
         if( underwater )
@@ -957,7 +923,7 @@ void r_Renderer::Draw()
             scene_hdr_buffer.ClearBuffer( true, false );
         }
     }//if deferred_shading
-#endif
+
     // glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
     DrawWorld();
     DrawBuildCube();
@@ -981,13 +947,8 @@ void r_Renderer::Draw()
 
     DrawSky();
 
-#if OGL21
     if( !underwater )
         CopyDepthBuffer();
-#else
-    if( !underwater )
-        CopyDepthBuffer();
-#endif
 
     glEnable( GL_BLEND );
     DrawSun();
@@ -1010,20 +971,12 @@ void r_Renderer::Draw()
     }
 
 
-#if OGL21
-    if( underwater )
-        CopyDepthBuffer();
-#endif
-
     glDisable( GL_BLEND );
 
     glDisable( GL_DEPTH_TEST );
 
-#ifdef OGL21
-    MakePostprocessingGL21();
-#else
     MakePostProcessing();
-#endif
+
     DrawHUD();
     DrawInventory();
     DrawBlockMenu();
@@ -1301,6 +1254,17 @@ void r_Renderer::MakePostProcessing()
         postprocess_shader.Uniform( "inv_screen_size", inv_screen_size );
     }
     fullscreen_quad.Show();
+
+    glDisable( GL_BLEND );
+    glDisable( GL_CULL_FACE );
+
+    brightness_info_buffer.BindColorTexture( 0, 0 );
+
+    mini_scene_buffe_shader.Bind();
+    mini_scene_buffe_shader.Uniform( "tex", 0 );
+    mini_scene_buffe_shader.Uniform ( "adapted_brightness", scene_brightness );
+
+    glDrawArrays( GL_TRIANGLES, 0, 6 );
 }
 
 void r_Renderer::RenderShadows()
@@ -1925,13 +1889,10 @@ void r_Renderer::DrawText()
 
 void r_Renderer::StartUpText()
 {
-#ifdef OGL21
-    if( text_shader.Load( "shaders/glsl_120/text_frag.glsl", "shaders/glsl_120/text_vert.glsl" ) )
-        printf( "error, text shader not found\n" );
-#else
+
     if( text_shader.Load( "shaders/text_frag.glsl", "shaders/text_vert.glsl" ) )
         printf( "error, text shader not found\n" );
-#endif
+
     text_shader.SetAttribLocation( "coord", ATTRIB_POSITION );
     text_shader.SetAttribLocation( "tex_coord", ATTRIB_TEX_COORD );
     text_shader.SetAttribLocation( "color", 2 );
@@ -1945,13 +1906,6 @@ void r_Renderer::StartUpText()
 
 
     font.LoadFontPage( R_FONT_PAGE_ASCII, "fonts/Courier_New_12.txt", "fonts/cn.bmp" );
-
-#ifdef OGL21
-    m_Vec3 inv_tex_size( 1.0f/ float( font.FontTexture( R_FONT_PAGE_ASCII )->GetWidth() ),
-                         1.0f / float( font.FontTexture( R_FONT_PAGE_ASCII )->GetHeight() ), 0.0f );
-    text_shader.Uniform( "inv_tex_size", inv_tex_size );
-    //no textureSize glsl function
-#endif
 
     font_vertices= new r_FontVertex[ R_LETTER_BUFFER_LEN * 4 ];
     font_indeces= new quint16[ R_LETTER_BUFFER_LEN * 6 ];
@@ -2040,11 +1994,6 @@ void r_Renderer::LoadTextures()
 
 void r_Renderer::LoadShaders()
 {
-#ifdef OGL21
-    if( world_shader.Load( "shaders/glsl_120/world_frag.glsl",
-                           "shaders/glsl_120/world_vert.glsl", NULL ) )
-        printf( "error, world shader not found\n" );
-#else
     if( deferred_shading )
     {
         if( world_shader.Load( "shaders/DS/world_frag.glsl",
@@ -2057,7 +2006,6 @@ void r_Renderer::LoadShaders()
                                "shaders/world_vert.glsl", NULL ) )
             printf( "error, world shader not found\n" );
     }
-#endif
 
     world_shader.SetAttribLocation( "coord", ATTRIB_POSITION );
     world_shader.SetAttribLocation( "tex_coord", ATTRIB_TEX_COORD );
@@ -2068,39 +2016,15 @@ void r_Renderer::LoadShaders()
 
     if( deferred_shading )
     {
-        world_shader.FindUniform( "tex" );
-        world_shader.FindUniform( "proj_mat" );
-        world_shader.FindUniform( "normal_mat" );
-
     }
     else
     {
-        world_shader.FindUniform( "tex" );
-        world_shader.FindUniform( "shadow_map" );
-        world_shader.FindUniform( "shadow_mat" );
-        world_shader.FindUniform( "proj_mat" );
-        world_shader.FindUniform( "normal_mat" );
-        world_shader.FindUniform( "cam_pos" );
-        world_shader.FindUniform( "fog_color" );
-        world_shader.FindUniform( "max_view2" );
-        world_shader.FindUniform( "sun_vector" );
-        world_shader.FindUniform( "material_property" );
-
-        world_shader.FindUniform( "direct_sun_light" );
-        world_shader.FindUniform( "sky_ambient_light" );
-        world_shader.FindUniform( "fire_ambient_light" );
     }
 
-
-#ifdef OGL21
-    if( water_shader.Load( "shaders/glsl_120/water_frag.glsl",
-                           "shaders/glsl_120/water_vert.glsl", NULL ) )
-        printf( "error, water shader not found\n" );
-#else
     if( water_shader.Load( "shaders/water_frag.glsl",
                            "shaders/water_vert.glsl", NULL ) )
         printf( "error, water shader not found\n" );
-#endif
+
     water_shader.SetAttribLocation( "coord", ATTRIB_POSITION );
     water_shader.SetAttribLocation( "tex_coord", ATTRIB_TEX_COORD );
     water_shader.SetAttribLocation( "normal", ATTRIB_NORMAL );
@@ -2108,34 +2032,6 @@ void r_Renderer::LoadShaders()
 
     water_shader.MoveOnGPU();
 
-    water_shader.FindUniform( "depth_buffer" );
-    water_shader.FindUniform( "depth_convert_k" );
-    water_shader.FindUniform( "inv_max_view_distance" );
-    water_shader.FindUniform( "inv_screen_size" );
-    water_shader.FindUniform( "viewport_scale" );
-
-    //water_shader.FindUniform( "tex" );
-    water_shader.FindUniform( "shadow_map" );
-    water_shader.FindUniform( "normal_map" );
-    water_shader.FindUniform( "shadow_mat" );
-    water_shader.FindUniform( "proj_mat" );
-    water_shader.FindUniform( "normal_mat" );
-    water_shader.FindUniform( "cam_pos" );
-    water_shader.FindUniform( "fog_color" );
-    water_shader.FindUniform( "max_view2" );
-    water_shader.FindUniform( "sun_vector" );
-    //water_shader.FindUniform( "material_property" );
-    water_shader.FindUniform( "time" );
-
-    water_shader.FindUniform( "direct_sun_light" );
-    water_shader.FindUniform( "sky_ambient_light" );
-    water_shader.FindUniform( "fire_ambient_light" );
-
-
-#ifdef OGL21
-    if( cube_shader.Load( "shaders/glsl_120/cube_frag.glsl", "shaders/glsl_120/cube_vert.glsl", NULL ) )
-        printf( "error, cube shader not found\n" );
-#else
     if( deferred_shading )
     {
         if( cube_shader.Load( "shaders/DS/cube_frag.glsl", "shaders/DS/cube_vert.glsl", NULL ) )
@@ -2146,260 +2042,134 @@ void r_Renderer::LoadShaders()
         if( cube_shader.Load( "shaders/cube_frag.glsl", "shaders/cube_vert.glsl", NULL ) )
             printf( "error, cube shader not found\n" );
     }
-#endif
 
     cube_shader.SetAttribLocation( "pos", 0 );
     cube_shader.MoveOnGPU();
-    cube_shader.FindUniform( "cube_pos" );
-    cube_shader.FindUniform( "proj_mat" );
 
-#ifdef OGL21
-    if( sky_shader.Load( "shaders/glsl_120/sky_frag.glsl", "shaders/glsl_120/sky_vert.glsl", NULL ) )
-        printf( "error, sky shader not found\n" );
-#else
+
     if( sky_shader.Load( "shaders/sky_frag.glsl", "shaders/sky_vert.glsl", NULL ) )
         printf( "error, sky shader not found\n" );
-#endif
 
     sky_shader.SetAttribLocation( "coord", 0 );
     sky_shader.MoveOnGPU();
-    sky_shader.FindUniform( "cu" );
-    sky_shader.FindUniform( "cam_pos" );
-    sky_shader.FindUniform( "proj_mat" );
-    sky_shader.FindUniform( "sun_vector" );
 
     //sky_shader.FindAttrib( "coord" );
 
 
-#ifndef OGL21
     if( shadow_shader.Load( NULL, "shaders/shadow_vert.glsl", NULL ) )
         printf( "error, shadow shader not found\n" );
 
     shadow_shader.SetAttribLocation( "coord", 0 );
     shadow_shader.MoveOnGPU();
-    shadow_shader.FindUniform( "proj_mat" );
+    //shadow_shader.FindUniform( "proj_mat" );
+
 
     //shadow_shader.FindAttrib( "coord" );
-#endif
 
 
-#ifdef OGL21
-    if( sun_shader.Load( "shaders/glsl_120/sun_frag.glsl", "shaders/glsl_120/sun_vert.glsl", NULL ) )
-        printf( "error, sun shader not found\n" );
-#else
     if( sun_shader.Load( "shaders/sun_frag.glsl", "shaders/sun_vert.glsl", NULL ) )
         printf( "error, sun shader not found\n" );
-#endif
 
     sun_shader.SetAttribLocation( "coord", 0 );
     sun_shader.MoveOnGPU();
 
-    sun_shader.FindUniform( "sun_tex" );
-    sun_shader.FindUniform( "sun_pos" );
-    sun_shader.FindUniform( "proj_mat" );
-    sun_shader.FindUniform( "aspect" );
-
-#ifndef OGL21
     if( postprocess_shader.Load( "shaders/postprocess_frag.glsl", "shaders/fullscreen_quad_vert.glsl", NULL ) )
         printf( "error, postprocess shader not found\n" );
 
     if( bloom )
-        postprocess_shader.Define( "#define BLOOM\n" );
+        postprocess_shader.Define( "BLOOM" );
     if( antialiasing )
-        postprocess_shader.Define( "#define ANTIALIASING\n" );
+        postprocess_shader.Define( "NTIALIASING" );
     if( edge_detect )
-        postprocess_shader.Define( "#define EDGE_DETECT\n" );
+        postprocess_shader.Define( "EDGE_DETECT" );
 
     postprocess_shader.SetAttribLocation( "coord", 0 );
     postprocess_shader.MoveOnGPU();
-    //postprocess_shader.FindAttrib( "coord" );
-    postprocess_shader.FindUniform( "depth_buffer" );
-    postprocess_shader.FindUniform( "scene_buffer" );
-    postprocess_shader.FindUniform( "adapted_brightness" );
-    postprocess_shader.FindUniform( "bloom_buffer" );
-    postprocess_shader.FindUniform( "inv_screen_size" );
-    postprocess_shader.FindUniform( "depth_convert_k" );
 
-#endif
-
-
-
-#ifdef OGL21
-    if( underwater_postprocess_shader.Load( "shaders/glsl_120/underwater_postprocess_frag.glsl", "shaders/glsl_120/fullscreen_quad_vert.glsl", NULL ) )
-        printf( "error, underwater postprocess shader not found\n" );
-
-    underwater_postprocess_shader.SetAttribLocation( "coord", 0 );
-    underwater_postprocess_shader.MoveOnGPU();
-    underwater_postprocess_shader.FindUniform( "scene_buffer" );
-    underwater_postprocess_shader.FindUniform( "depth_buffer" );
-    underwater_postprocess_shader.FindUniform( "inv_screen_size" );
-    underwater_postprocess_shader.FindUniform( "time" );
-    underwater_postprocess_shader.FindUniform( "viewport_scale" );
-    underwater_postprocess_shader.FindUniform( "inv_max_view_distance" );
-    underwater_postprocess_shader.FindUniform( "depth_convert_k" );
-    underwater_postprocess_shader.FindUniform( "viewport_scale" );
-    underwater_postprocess_shader.FindUniform( "underwater_fog_color" );
-
-#else
     if( underwater_postprocess_shader.Load( "shaders/postprocess_frag.glsl", "shaders/fullscreen_quad_vert.glsl", NULL ) )
         printf( "error, underwater postprocess shader not found\n" );
 
-    underwater_postprocess_shader.Define( "#define UNDERWATER\n" );
+    underwater_postprocess_shader.Define( "UNDERWATER" );
 
     underwater_postprocess_shader.SetAttribLocation( "coord", 0 );
     underwater_postprocess_shader.MoveOnGPU();
-    //underwater_postprocess_shader.FindAttrib( "coord" );
-    underwater_postprocess_shader.FindUniform( "depth_buffer" );
-    underwater_postprocess_shader.FindUniform( "scene_buffer" );
-    underwater_postprocess_shader.FindUniform( "adapted_brightness" );
-    underwater_postprocess_shader.FindUniform( "bloom_buffer" );
-    underwater_postprocess_shader.FindUniform( "inv_screen_size" );
-    underwater_postprocess_shader.FindUniform( "time" );
-    underwater_postprocess_shader.FindUniform( "depth_convert_k" );
-    underwater_postprocess_shader.FindUniform( "viewport_scale" );
-    underwater_postprocess_shader.FindUniform( "underwater_fog_color" );
-#endif
 
-#ifndef OGL21
     if( brightness_shader.Load( "shaders/scene_brightness_frag.glsl", "shaders/fullscreen_quad_vert.glsl", NULL ) )
         printf( "error, brightness shader not found\n" );
 
     brightness_shader.SetAttribLocation( "coord", 0 );
     brightness_shader.MoveOnGPU();
-    brightness_shader.FindUniform( "scene_buffer" );
-#endif
+   // brightness_shader.FindUniform( "scene_buffer" );
 
-#ifndef OGL21
     if( bloom_shader[0].Load( "shaders/bloom_0_frag.glsl", "shaders/fullscreen_quad_vert.glsl", NULL ) )
         printf( "error, bloom shader 0 not found\n" );
 
     bloom_shader[0].SetAttribLocation( "coord", 0 );
     bloom_shader[0].MoveOnGPU();
     bloom_shader[0].SetAttribLocation( "coord", 0 );
-    bloom_shader[0].FindUniform( "scene_buffer" );
-    bloom_shader[0].FindUniform( "inv_screen_size" );
-    bloom_shader[0].FindUniform( "pass_edge" );
-#endif
 
-#ifndef OGL21
     if( bloom_shader[1].Load( "shaders/bloom_1_frag.glsl", "shaders/fullscreen_quad_vert.glsl", NULL ) )
         printf( "error, bloom shader 1 not found\n" );
 
     bloom_shader[1].SetAttribLocation( "coord", 0 );
     bloom_shader[1].MoveOnGPU();
-    bloom_shader[1].FindUniform( "bloom_0_buffer" );
-    bloom_shader[1].FindUniform( "inv_screen_size" );
-#endif
+    /*bloom_shader[1].FindUniform( "bloom_0_buffer" );
+    bloom_shader[1].FindUniform( "inv_screen_size" );*/
 
-
-#ifndef OGL21
     if(deferred_shading )
     {
         if( ds_base_shader.Load( "shaders/DS/ds_main_frag.glsl", "shaders/DS/ds_main_vert.glsl", NULL ) )
             printf( "error, base deferred shader not found\n" );
 
+        if( smooth_shadows )
+            ds_base_shader.Define( "#define SMOOTH_SHADOWS\n" );
         ds_base_shader.SetAttribLocation( "pos", 0 );
         ds_base_shader.MoveOnGPU();
-
-        ds_base_shader.FindUniform( "albedo_material_id" );
-        ds_base_shader.FindUniform( "normal_light" );
-        ds_base_shader.FindUniform( "depth_buffer" );
-        ds_base_shader.FindUniform( "viewport_scale" );
-        ds_base_shader.FindUniform( "depth_convert_k" );
-        ds_base_shader.FindUniform( "sun_vector" );
-        ds_base_shader.FindUniform( "shadow_mat" );
-        ds_base_shader.FindUniform( "shadow_map" );
-        ds_base_shader.FindUniform( "normal_mat" );
-        ds_base_shader.FindUniform( "material_property" );
-
-        ds_base_shader.FindUniform( "sky_ambient_light" );
-        ds_base_shader.FindUniform( "fire_ambient_light" );
-        ds_base_shader.FindUniform( "direct_sun_light" );
-
     }
-#endif
 
 
 
-
-#ifdef OGL21
-    if( models_shader.Load( "shaders/glsl_120/world_frag.glsl", "shaders/glsl_120/model_vert.glsl", NULL ) )
-        printf( "error. Model shader not found.\n" );
-
-    models_shader.Define( "#define NORMAL_INTERPOLATION\n" );
-    models_shader.SetAttribLocation( "coord", ATTRIB_POSITION );
-    models_shader.SetAttribLocation( "tex_coord", ATTRIB_TEX_COORD );
-    models_shader.SetAttribLocation( "normal", ATTRIB_NORMAL );
-    models_shader.MoveOnGPU();
-
-    models_shader.FindUniform( "tex" );
-    models_shader.FindUniform( "proj_mat" );
-    models_shader.FindUniform( "pos" );
-    models_shader.FindUniform( "light" );
-
-    models_shader.FindUniform( "sky_ambient_light" );
-    models_shader.FindUniform( "fire_ambient_light" );
-
-#else//if !OGL21
     if( deferred_shading )
     {
         if( models_shader.Load( "shaders/DS/world_frag.glsl", "shaders/DS/model_vert.glsl", NULL ) )
             printf( "error. Model shader not found.\n" );
 
-        models_shader.Define( "#define NORMAL_INTERPOLATION\n" );
+        models_shader.Define( "NORMAL_INTERPOLATION" );
         models_shader.SetAttribLocation( "coord", ATTRIB_POSITION );
         models_shader.SetAttribLocation( "tex_coord", ATTRIB_TEX_COORD );
         models_shader.SetAttribLocation( "normal", ATTRIB_NORMAL );
         models_shader.MoveOnGPU();
 
-        models_shader.FindUniform( "tex" );
+        /*models_shader.FindUniform( "tex" );
         models_shader.FindUniform( "model_buffer" );
         models_shader.FindUniform( "texture_buffer_shift" );
         models_shader.FindUniform( "proj_mat" );
         models_shader.FindUniform( "normal_mat" );
-        models_shader.FindUniform( "cam_pos" );
+        models_shader.FindUniform( "cam_pos" );*/
     }
     else// if ! deferred_shading
     {
         if( models_shader.Load( "shaders/world_frag.glsl", "shaders/model_vert.glsl", NULL ) )
             printf( "error. Model shader not found.\n" );
 
-        models_shader.Define( "#define NORMAL_INTERPOLATION\n" );
+        models_shader.Define( "NORMAL_INTERPOLATION" );
         models_shader.SetAttribLocation( "coord", ATTRIB_POSITION );
         models_shader.SetAttribLocation( "tex_coord", ATTRIB_TEX_COORD );
         models_shader.SetAttribLocation( "normal", ATTRIB_NORMAL );
         models_shader.MoveOnGPU();
-
-        models_shader.FindUniform( "tex" );
-        models_shader.FindUniform( "shadow_map" );
-        models_shader.FindUniform( "model_buffer" );
-        models_shader.FindUniform( "texture_buffer_shift" );
-        models_shader.FindUniform( "shadow_mat" );
-        models_shader.FindUniform( "proj_mat" );
-        models_shader.FindUniform( "normal_mat" );
-        models_shader.FindUniform( "cam_pos" );
-        models_shader.FindUniform( "fog_color" );
-        models_shader.FindUniform( "max_view2" );
-        models_shader.FindUniform( "sun_vector" );
-        models_shader.FindUniform( "material_property" );
-
-        models_shader.FindUniform( "direct_sun_light" );
-        models_shader.FindUniform( "sky_ambient_light" );
-        models_shader.FindUniform( "fire_ambient_light" );
     }
-#endif//if !OGL21
 
+
+    mini_scene_buffe_shader.Load( "shaders/mini-scene-buffer_frag.glsl", "shaders/mini-scene-buffer_vert.glsl", NULL );
+    mini_scene_buffe_shader.MoveOnGPU();
+   // mini_scene_buffe_shader.FindUniform( "tex" );
+   // mini_scene_buffe_shader.FindUniform( "adapted_brightness" );
 }
 
 
 void r_Renderer::SetupFrameBuffers()
 {
-#ifdef OGL21
-    underwater_buffer_gl21.SetFiltration( GL_NEAREST, GL_LINEAR );
-    underwater_buffer_gl21.Create();
-    underwater_buffer_gl21.TextureData( viewport_x/2, viewport_y/2, GL_UNSIGNED_INT, GL_RGB, 24, NULL );
-    underwater_buffer_gl21.MoveOnGPU();
-#else
+
     GLenum hdr_tex_type= GL_HALF_FLOAT;
     int hdr_tex_components= 3;
     scene_hdr_buffer.Create( 24, 0, 1, &hdr_tex_components, &hdr_tex_type, viewport_x, viewport_y );
@@ -2443,8 +2213,6 @@ void r_Renderer::SetupFrameBuffers()
         underwater_g_buffer.ClearBuffer( true, true );
     }
 
-
-#endif
 
     glGenTextures( 1, &scene_depth_buffer );
     glBindTexture( GL_TEXTURE_2D, scene_depth_buffer );
@@ -2579,7 +2347,7 @@ r_Renderer::r_Renderer( World* w,Player* p, int width, int height ):
     text_data_mutex( QMutex::NonRecursive ),
     update_thread( SUpdateTick, NULL, true ),
     cam_angle( 0.0f, 0.0f, 0.0f ),
-    fov( 70.0f * m_Math::FM_TORAD ), z_near( 0.125f ), z_far( 512.0f ),
+    fov( 80.0f * m_Math::FM_TORAD ), z_near( 0.125f ), z_far( 512.0f ),
     viewport_x(width), viewport_y(height),
     renderer_initialized( false ), full_update(false), need_full_update_shred_list(false),
     front_shadowmap(0), back_shadowmap(1),
@@ -2766,7 +2534,7 @@ void r_Renderer::UpdateWorldMap()
     char c;
     unsigned char color;
     Shred* s;
-     int player_longi,player_lati;
+    int player_longi,player_lati;
     if( player != NULL )
         player_longi= player->GetLongitude() , player_lati= player->GetLatitude();
     else player_longi= player_longi= -1;
@@ -3048,6 +2816,7 @@ void r_Renderer::LoadConfig()
     use_geometry_particles= config.value( "use_geometry_particles", true ).toBool();
 
     deferred_shading= config.value( "deferred_shading", false ).toBool();
+    smooth_shadows= config.value( "smooth_shadows", false ).toBool();
 
     texture_manager.SetTexturesSize( config.value( "texture_size", 128 ).toInt() );
 
